@@ -1,4 +1,4 @@
-import starter.gameLoop
+import manager.ColonyManager
 
 /**
  * Entry point
@@ -8,5 +8,9 @@ import starter.gameLoop
  */
 @Suppress("unused")
 fun loop() {
-    gameLoop()
+    val cm = ColonyManager()
+    cm.run()
 }
+
+const val debug = false
+const val shardName = "shard3"
