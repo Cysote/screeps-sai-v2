@@ -1,17 +1,21 @@
 package manager
 
 import annotations.ThrowsExceptions
+import creep.economy.BuildCreep
 import creep.economy.HarvestCreep
 import creep.economy.IdleCreep
+import exception.TaskNotFoundException
 import exception.TaskTypeNotSupportedException
 import logger.logDebugMessage
 import logger.logError
+import logger.logMessage
 import memory.owningRoom
 import memory.taskId
 import memory.tasks
 import screeps.api.*
 import task.Task
 import task.TaskType
+import kotlin.math.ceil
 import kotlin.math.max
 
 /**
@@ -26,19 +30,24 @@ class CreepManager {
 
     fun activateAliveCreeps() {
         Game.creeps.values.forEach { creep ->
-            val creepTask = Memory.tasks.singleOrNull { memTask -> memTask.id == creep.memory.taskId }
-            if (creepTask == null) {
-                logError("Creep: ${creep.name} has an id with no task")
-                IdleCreep(creep).act()
-            } else {
-                try {
-                    when(creepTask.type) {
-                        TaskType.HARVESTSOURCE.name -> HarvestCreep(creep)
-                        else -> IdleCreep(creep)
-                    }.act()
+            try {
+                val creepTask = Memory.tasks.singleOrNull { memTask -> memTask.id == creep.memory.taskId }
+                if (creepTask == null) {
+                    relinquishTask(creep)
+                    IdleCreep(creep).act()
+                } else {
+
+                        when(creepTask.type) {
+                            TaskType.HARVESTSOURCE.name -> HarvestCreep(creep)
+                            TaskType.BUILD.name -> BuildCreep(creep)
+                            else -> IdleCreep(creep)
+                        }.act()
+
                 }
-                catch (e: RuntimeException) {
-                    logError("Creep failed to act. Reason: ${e.message}")
+            } catch (e: RuntimeException) {
+                when (e) {
+                    is TaskNotFoundException -> relinquishTask(creep)
+                    else -> logError("Creep failed to act. Reason: ${e.message}")
                 }
             }
         }
@@ -58,6 +67,11 @@ class CreepManager {
                             }
                             else -> if (getBodyNum(creep, WORK) > 0 && getBodyNum(creep, CARRY) > 0)
                                 return creep
+                        }
+                    }
+                    TaskType.BUILD.name -> {
+                        if (getBodyNum(creep, WORK) > 0 && getBodyNum(creep, CARRY) > 0) {
+                            return creep
                         }
                     }
                     else -> return creep
@@ -80,6 +94,10 @@ class CreepManager {
         }
 
         return idleCreeps
+    }
+
+    private fun relinquishTask(creep: Creep) {
+        creep.memory.taskId = ""
     }
 
     @ThrowsExceptions
@@ -108,6 +126,16 @@ class CreepManager {
 
                 moveNeeded = workNeeded + carryNeeded
                 moveRatio = 1
+            }
+            TaskType.BUILD.name -> {
+                workNeeded = ceil((task.desiredWork / task.desiredCreeps).toDouble()).toInt().coerceAtLeast(2)
+                workRatio = 1
+
+                carryNeeded = ceil((task.desiredCarry / task.desiredCreeps).toDouble()).toInt().coerceAtLeast(4)
+                carryRatio = 2
+
+                moveNeeded = workNeeded + carryNeeded
+                moveRatio = 3
             }
             else -> {
                 throw TaskTypeNotSupportedException("Attempted to create a body for task ${task.type} but no code path exists.")

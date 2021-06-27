@@ -8,6 +8,7 @@ data class Task(
         var owningRoom: String = "",                    // The room that owns this task
         var targetId: String = "",                      // The ID of the target of this task
         var depositStructureId: String = "",            // The ID of the structure to deposit resources into
+        var withdrawStructureId: String = "",           // The ID of the structure to withdraw resources from
         var assignedCreeps: Array<String> = arrayOf(),  // The list of creeps currently working this task
         var desiredCreeps: Int = 0,                     // The maximum amount of creeps to work this task. 0 for no limit.
         var desiredWork: Int = 0,                       // The total work needed to fill this task

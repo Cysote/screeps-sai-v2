@@ -1,11 +1,15 @@
 package manager
 
 import logger.logMessage
+import logger.logPriorityMessage
 import memory.preparingToSpawn
+import memory.taskId
+import memory.tasks
 import screeps.api.*
 import screeps.utils.isEmpty
 import screeps.utils.unsafe.delete
 import task.Task
+import task.TaskType
 
 /**
  * Entry point for all colony functions.
@@ -18,8 +22,11 @@ class ColonyManager {
 
     fun run() {
         initializeData()
-        cleanupDeadCreepsMemory()
+        val deadCreeps: List<JsPair<String, CreepMemory>> = cleanupDeadCreepsMemory()
+        removeDeadCreepsFromTasks(deadCreeps)
         resetSpawners()
+
+        performTaskMaintenance()
 
         activateAliveCreeps()
         findNewTasks()
@@ -31,15 +38,35 @@ class ColonyManager {
     }
 
     private fun assignCreepsToOrCreateCreepsForTasks(tasks: List<Task>) {
+        val roomToTask = mutableMapOf<String, MutableList<Task>>()
         tasks.forEach { task ->
-            val idleCreep = creepManager.getIdleCreepForTask(task)
-            if (idleCreep != null)
-                taskManager.addCreepToTask(task.id, idleCreep)
-            else { logMessage("2")
-                val creepBody = creepManager.getCreepBodyForTask(task, roomManager.getRoomMaxEnergy(task.owningRoom))
-                roomManager.createCreepForTask(task, creepBody)
+            val rttTask = roomToTask.getOrElse(task.owningRoom){ mutableListOf() }
+            rttTask.add(task)
+            roomToTask[task.owningRoom] = rttTask
+        }
+
+        roomToTask.keys.forEach { roomName ->
+            roomToTask[roomName]?.sortedBy { TaskType.valueOf(it.type).priority }?.let { sortedTasks ->
+
+                // Run this task loop for this room sorted by priority, and break out of it once we cannot fill a task
+                taskLoop@for (task in sortedTasks) {
+                    val idleCreep = creepManager.getIdleCreepForTask(task)
+                    if (idleCreep != null)
+                        taskManager.addCreepToTask(task.id, idleCreep)
+                    else {
+                        val creepBody = creepManager.getCreepBodyForTask(task, roomManager.getRoomMaxEnergy(task.owningRoom))
+                        val createdCreepName = roomManager.createCreepForTask(task, creepBody)
+
+                        if (createdCreepName != null) taskManager.addCreepNameToTask(task.id, createdCreepName)
+                        else break@taskLoop
+                    }
+                }
             }
         }
+    }
+
+    private fun performTaskMaintenance() {
+        taskManager.performTaskMaintenance()
     }
 
     private fun resetSpawners() {
@@ -77,18 +104,30 @@ class ColonyManager {
     /**
      * Removes dead creeps from game memory
      */
-    private fun cleanupDeadCreepsMemory(): List<String> {
+    private fun cleanupDeadCreepsMemory(): List<JsPair<String, CreepMemory>> {
         if (Memory.creeps.isEmpty()) return listOf()
 
-        val deadCreepNames = mutableListOf<String>()
-        for ((name, _) in Memory.creeps) {
-            if (Game.creeps[name] == null) {
-                logMessage("Deleting dead creep $name")
-                deadCreepNames.add(name)
-                delete(Memory.creeps[name])
+        val deadCreepEntries = mutableListOf<JsPair<String,CreepMemory>>()
+        for (creepEntry in Memory.creeps) {
+            if (Game.creeps[creepEntry.component1()] == null) {
+                logMessage("Deleting dead creep ${creepEntry.component1()}")
+                deadCreepEntries.add(creepEntry)
+                delete(Memory.creeps[creepEntry.component1()])
             }
         }
 
-        return deadCreepNames
+        return deadCreepEntries
+    }
+
+    private fun removeDeadCreepsFromTasks(deadCreepEntries: List<JsPair<String, CreepMemory>>) {
+        deadCreepEntries.forEach { entry ->
+            val name = entry.component1()
+            val memory = entry.component2()
+            Memory.tasks.find { it.id == memory.taskId }?.let { task ->
+                val assignedCreepsList = task.assignedCreeps.toMutableList()
+                assignedCreepsList.remove(name)
+                task.assignedCreeps = assignedCreepsList.toTypedArray()
+            }
+        }
     }
 }

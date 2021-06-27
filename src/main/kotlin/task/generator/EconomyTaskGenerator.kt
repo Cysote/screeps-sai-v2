@@ -20,6 +20,7 @@ class EconomyTaskGenerator {
             for (info in room.memory.sourceInfos) {
                 if (harvestTasks.find { task -> task.targetId == info.sourceId } == null) {
 
+                    // Calculate how many workers can fit on the source (empty spaces next to source * 2)
                     val source = Game.getObjectById<Source>(info.sourceId)!!
                     val lookResult = room.lookAtAreaAsArray(source.pos.y-1, source.pos.x-1, source.pos.y+1, source.pos.x+1)
                     val maxEmptySpaces = lookResult.filter { space -> space.type == LOOK_TERRAIN && space.terrain != TERRAIN_WALL }.size
@@ -31,15 +32,35 @@ class EconomyTaskGenerator {
                             isActive = true,
                             owningRoom = room.name,
                             targetId = info.sourceId,
+                            depositStructureId = "",
                             desiredCreeps = maxEmptySpaces * 2,
                             desiredWork = 6,
-                            desiredCarry = 1
+                            desiredCarry = 0
                     )
                     tasks.add(harvestSourceTask)
                 }
             }
         }
         return tasks
+    }
+
+    fun generateBuildTask(room: Room): Task? {
+        Memory.tasks.find { task -> task.type == TaskType.BUILD.name && task.owningRoom == room.name }
+                ?: run {
+                    return Task(
+                            id = generateTaskId(),
+                            role = TaskRole.ECONOMY.name,
+                            type = TaskType.BUILD.name,
+                            isActive = true,
+                            owningRoom = room.name,
+                            targetId = "",
+                            withdrawStructureId = "",
+                            desiredCreeps = 0,
+                            desiredWork = 0,
+                            desiredCarry = 0
+                    )
+                }
+        return null
     }
 
     private fun generateTaskId(): String {

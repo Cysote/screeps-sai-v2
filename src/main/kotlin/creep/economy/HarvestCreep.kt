@@ -7,18 +7,24 @@ import screeps.api.*
 
 @ThrowsExceptions
 class HarvestCreep(private val creep: Creep) : EconomyCreep, EconomyActions(creep) {
-    init { updateCreepMemory() }
+    init {
+        updateCreepMemory()
+    }
 
     override fun act() {
         if (!creep.memory.reachedFullCapacity) {
             harvestTargetSource()
-            depositEnergyNearby()
+            depositEnergyNearby(throwException = false)
         }
 
         updateCreepMemory()
 
         if (creep.memory.reachedFullCapacity) {
-            depositEnergy()
+            if (!depositEnergy(throwException = false)) {
+                if (!buildStructures(throwException = false)) {
+                    upgradeController()
+                }
+            }
         }
     }
 }

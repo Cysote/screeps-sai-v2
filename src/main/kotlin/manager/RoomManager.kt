@@ -48,7 +48,7 @@ class RoomManager {
         }
     }
 
-    fun createCreepForTask(task: Task, creepBody: List<BodyPartConstant>) {
+    fun createCreepForTask(task: Task, creepBody: List<BodyPartConstant>): String? {
         Game.spawns.values.filter { it.room.name == task.owningRoom }.forEach { spawn ->
             if (!spawn.memory.preparingToSpawn && spawn.spawning == null) {
                 val creepName = "E-${task.owningRoom}-${task.type}-${Game.time}"
@@ -60,9 +60,20 @@ class RoomManager {
                     }
                 })
 
-                if (spawnResult == OK) spawn.memory.preparingToSpawn = true
+                if (spawnResult == OK) {
+                    val work = creepBody.filter { it == WORK }.size
+                    val carry = creepBody.filter { it == CARRY }.size
+                    val claim = creepBody.filter { it == CLAIM }.size
+                    val move = creepBody.filter { it == MOVE }.size
+                    logPriorityMessage("Creating creep $creepName for task ${task.type} with id ${task.id} " +
+                            "with body W$work-C$carry-CL$claim-M$move",
+                            task.owningRoom)
+                    spawn.memory.preparingToSpawn = true
+                    return creepName
+                }
             }
         }
+        return null
     }
 
     fun getRoomMaxEnergy(roomName: String): Int {
