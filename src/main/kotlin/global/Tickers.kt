@@ -1,0 +1,3 @@
+package global
+
+val LOW_PRIORITY_UPDATE_TICKER_MAX = 100

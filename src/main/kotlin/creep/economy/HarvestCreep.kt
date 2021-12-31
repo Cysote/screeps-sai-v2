@@ -2,11 +2,12 @@ package creep.economy
 
 import annotations.ThrowsExceptions
 import creep.actions.EconomyActions
+import logger.logMessage
 import memory.*
 import screeps.api.*
 
 @ThrowsExceptions
-class HarvestCreep(private val creep: Creep) : EconomyCreep, EconomyActions(creep) {
+class HarvestCreep(private val creep: Creep): EconomyCreep, EconomyActions(creep) {
     init {
         updateCreepMemory()
     }

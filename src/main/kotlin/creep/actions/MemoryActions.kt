@@ -4,10 +4,9 @@ import annotations.ThrowsExceptions
 import exception.*
 import global.STORAGE_ID_TOKEN
 import logger.logMessage
-import memory.reachedFullCapacity
-import memory.taskId
-import memory.tasks
+import memory.*
 import screeps.api.*
+import screeps.api.structures.StructureContainer
 import screeps.api.structures.StructureController
 import task.Task
 
@@ -58,7 +57,9 @@ open class MemoryActions(private val creep: Creep) {
     }
 
     fun getSourceByTaskRoom(): Source {
-        val s: Source? = Game.rooms[task.owningRoom]?.find(FIND_SOURCES)?.get(0)
+        val s: Source? = Game.rooms[task.owningRoom]?.find(FIND_SOURCES)?.let {
+            it[it.indices.random()]
+        }
         if (s != null) return s
         throw NoRoomResourceException("Attempted to get source from task room, but could not find source. Creep: ${creep.name} Task: ${task.id}")
     }
@@ -70,10 +71,62 @@ open class MemoryActions(private val creep: Creep) {
         throw InvalidIdException("Attempted to get deposit structure from memory, but it doesn't exist. Creep: ${creep.name} Task: ${task.id}")
     }
 
+    @Suppress("UNCHECKED_CAST_TO_EXTERNAL_INTERFACE")
+    fun getDepositStructureByTaskRoom(): StoreOwner {
+        val room = Game.rooms[task.owningRoom]!!
+
+        // First, get spawning structs
+        val notFullSpawningStructures = Game.structures.values.filter { struct ->
+            struct.room.name == task.owningRoom
+                    && (struct.structureType == STRUCTURE_SPAWN || struct.structureType == STRUCTURE_EXTENSION)
+                    && (struct as StoreOwner).store.getFreeCapacity(RESOURCE_ENERGY) > 0
+        }.toTypedArray()
+        if (notFullSpawningStructures.isNotEmpty()) {
+            return creep.pos.findClosestByRange(notFullSpawningStructures) as StoreOwner
+        }
+
+        // Next, get upgrade containers
+        if (room.memory.controllerInfo.controllerContainerId.isNotBlank()) {
+            val controllerCont = Game.getObjectById<StructureContainer>(room.memory.controllerInfo.controllerContainerId)
+            if (controllerCont != null
+                    && (controllerCont.store.getUsedCapacity(RESOURCE_ENERGY) < (2000*3)/4) ) {
+                return controllerCont
+            }
+        }
+
+        // Finally, get storage
+        if (task.withdrawStructureId != STORAGE_ID_TOKEN && room.storage != null) {
+            return room.storage!!
+        }
+
+        throw StructureNotFoundException("Could not find deposit structure in room: ${room.name}. Creep: ${creep.name} Task: ${task.id}")
+    }
+
+    fun getWithdrawStructureByTaskRoom(): StoreOwner {
+        val room = Game.rooms[task.owningRoom]!!
+
+        val sourceContainers = room.memory.sourceInfos
+                .filter { it.sourceContainerId.isNotBlank() }
+                .mapNotNull { Game.getObjectById<StructureContainer>(it.sourceContainerId) }
+        if (sourceContainers.isNotEmpty()) {
+            return sourceContainers.sortedByDescending { it.store.getUsedCapacity(RESOURCE_ENERGY) }[0]
+        } else if (room.storage != null) return room.storage!!
+
+        throw StructureNotFoundException("Could not find withdraw structure in room: ${room.name}. Creep: ${creep.name} Task: ${task.id}")
+    }
+
     fun getWithdrawStructureFromTask(): StoreOwner {
         if (task.withdrawStructureId == STORAGE_ID_TOKEN) return Game.rooms[task.owningRoom]?.storage!!
         val s = Game.getObjectById<StoreOwner>(task.withdrawStructureId)
         if (s != null) return s
         throw InvalidIdException("Attempted to get withdraw structure from memory, but it doesn't exist. Creep: ${creep.name} Task: ${task.id}")
+    }
+
+    fun getWithdrawStructureByRoomController(): StoreOwner {
+        Game.rooms[task.owningRoom]?.memory?.controllerInfo?.controllerContainerId?.let { sId ->
+            val s = Game.getObjectById<StoreOwner>(sId)
+            if (s != null) return s
+        }
+        throw InvalidIdException("Attempted to get withdraw structure from room controller info, but it doesn't exist. Creep: ${creep.name} Task: ${task.id}")
     }
 }

@@ -63,6 +63,46 @@ class EconomyTaskGenerator {
         return null
     }
 
+    fun generateUpgradeTask(room: Room): Task? {
+        Memory.tasks.find { task -> task.type == TaskType.UPGRADE.name && task.owningRoom == room.name }
+                ?: run {
+                    return Task(
+                            id = generateTaskId(),
+                            role = TaskRole.ECONOMY.name,
+                            type = TaskType.UPGRADE.name,
+                            isActive = true,
+                            owningRoom = room.name,
+                            targetId = "",
+                            withdrawStructureId = "",
+                            desiredCreeps = 0,
+                            desiredWork = 0,
+                            desiredCarry = 0
+                    )
+                }
+        return null
+    }
+
+    fun generateDeliveryTask(room: Room): Task? {
+        if (room.memory.sourceInfos.any { it.sourceContainerId.isNotBlank() } || room.storage != null) {
+            Memory.tasks.find { task -> task.type == TaskType.DELIVERY.name && task.owningRoom == room.name }
+                    ?: run {
+                        return Task(
+                                id = generateTaskId(),
+                                role = TaskRole.ECONOMY.name,
+                                type = TaskType.DELIVERY.name,
+                                isActive = true,
+                                owningRoom = room.name,
+                                targetId = "",
+                                withdrawStructureId = "",
+                                desiredCreeps = 0,
+                                desiredWork = 0,
+                                desiredCarry = 0
+                        )
+                    }
+        }
+        return null
+    }
+
     private fun generateTaskId(): String {
         var result = ""
         var j = 0

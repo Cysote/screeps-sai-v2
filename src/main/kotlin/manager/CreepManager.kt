@@ -1,9 +1,8 @@
 package manager
 
 import annotations.ThrowsExceptions
-import creep.economy.BuildCreep
-import creep.economy.HarvestCreep
-import creep.economy.IdleCreep
+import creep.economy.*
+import exception.ConstructionSiteNotFoundException
 import exception.TaskNotFoundException
 import exception.TaskTypeNotSupportedException
 import logger.logDebugMessage
@@ -36,17 +35,17 @@ class CreepManager {
                     relinquishTask(creep)
                     IdleCreep(creep).act()
                 } else {
-
                         when(creepTask.type) {
                             TaskType.HARVESTSOURCE.name -> HarvestCreep(creep)
                             TaskType.BUILD.name -> BuildCreep(creep)
+                            TaskType.UPGRADE.name -> UpgradeCreep(creep)
+                            TaskType.DELIVERY.name -> DeliveryCreep(creep)
                             else -> IdleCreep(creep)
                         }.act()
-
                 }
             } catch (e: RuntimeException) {
                 when (e) {
-                    is TaskNotFoundException -> relinquishTask(creep)
+                    is TaskNotFoundException, is ConstructionSiteNotFoundException -> relinquishTask(creep)
                     else -> logError("Creep failed to act. Reason: ${e.message}")
                 }
             }
@@ -102,6 +101,8 @@ class CreepManager {
 
     @ThrowsExceptions
     fun getCreepBodyForTask(task: Task, maxEnergy: Int): List<BodyPartConstant> {
+        logDebugMessage("getCreepBodyForTask. Task: ${task.type}")
+
         val workNeeded: Int
         val workRatio: Int
 
@@ -136,6 +137,28 @@ class CreepManager {
 
                 moveNeeded = workNeeded + carryNeeded
                 moveRatio = 3
+            }
+            TaskType.UPGRADE.name -> {
+                // Do not subtract the work we have already provisioned, because work required fluctuates, and we don't want millions of creeps upgrading
+                workNeeded = task.desiredWork
+                workRatio = 1
+
+                carryNeeded = 1
+                carryRatio = 0
+
+                moveNeeded = workNeeded + carryNeeded
+                moveRatio = 1
+            }
+            TaskType.DELIVERY.name -> {
+                workNeeded = 0
+                workRatio = 0
+
+                // Let's keep all the delivery creeps at the same ratio of body types
+                carryNeeded = ceil((task.desiredCarry / task.desiredCreeps).toDouble()).toInt()
+                carryRatio = 1
+
+                moveNeeded = carryNeeded
+                moveRatio = 1
             }
             else -> {
                 throw TaskTypeNotSupportedException("Attempted to create a body for task ${task.type} but no code path exists.")
@@ -174,7 +197,7 @@ class CreepManager {
      * Body Parts are added to the creep in the following order:
      * TOUGH -> WORK -> CARRY -> CLAIM -> ATTACK -> RANGED_ATTACK -> HEAL -> MOVE
      */
-    fun generateBodyByRatio(
+    private fun generateBodyByRatio(
             maxEnergy: Int,
             maxWork: Int = 0, workRatio: Int = 0,
             maxCarry: Int = 0, carryRatio: Int = 0,
@@ -259,10 +282,8 @@ class CreepManager {
                 "Attack: $attackParts, RangedAttack: $rangedAttackParts, Tough: $toughParts " +
                 "Heal: $healParts, Move: $moveParts - Initial energy: $energyUsed")
 
-        var nextRunEnergyUsed = 0
-
         // Stage the results of the potential next run as the while loop's test
-        nextRunEnergyUsed = energyUsed
+        var nextRunEnergyUsed = energyUsed
         if (workParts + workRatio <= maxWork) nextRunEnergyUsed += (workRatio * BODYPART_COST[WORK]!!)
         if (carryParts + carryRatio <= maxCarry) nextRunEnergyUsed += (carryRatio * BODYPART_COST[CARRY]!!)
         if (claimParts + claimRatio <= maxClaim) nextRunEnergyUsed += (claimRatio * BODYPART_COST[CLAIM]!!)
@@ -281,6 +302,8 @@ class CreepManager {
                         || ((toughParts + toughRatio <= maxTough && toughRatio != 0))
                         || ((healParts + healRatio <= maxHeal && healRatio != 0))
                         || ((moveParts + moveRatio <= maxMove && moveRatio != 0)))) {
+
+            logDebugMessage("nextRunEnergyUsed: $nextRunEnergyUsed")
 
             if (workParts + workRatio <= maxWork) {
                 workParts += workRatio
@@ -381,6 +404,7 @@ class CreepManager {
             moveParts--
         }
 
-        return body
+        if (body.isEmpty()) logDebugMessage("Failed to generate a body. Using basic body W1-C1-M2")
+        return if (body.isNotEmpty()) body else listOf(WORK, CARRY, MOVE, MOVE)
     }
 }

@@ -1,7 +1,6 @@
 package manager
 
 import logger.logMessage
-import logger.logPriorityMessage
 import memory.preparingToSpawn
 import memory.taskId
 import memory.tasks
@@ -26,7 +25,10 @@ class ColonyManager {
         removeDeadCreepsFromTasks(deadCreeps)
         resetSpawners()
 
+        defendRooms()
+
         performTaskMaintenance()
+        upgradeRooms()
 
         activateAliveCreeps()
         findNewTasks()
@@ -34,7 +36,7 @@ class ColonyManager {
         val tasks = getActiveBelowCapacityTasks()
         assignCreepsToOrCreateCreepsForTasks(tasks)
 
-
+        lowPriorityActions()
     }
 
     private fun assignCreepsToOrCreateCreepsForTasks(tasks: List<Task>) {
@@ -69,6 +71,10 @@ class ColonyManager {
         taskManager.performTaskMaintenance()
     }
 
+    private fun upgradeRooms() {
+        roomManager.levelUpRooms()
+    }
+
     private fun resetSpawners() {
         Game.spawns.values.forEach { spawn ->
             spawn.memory.preparingToSpawn = false
@@ -83,7 +89,8 @@ class ColonyManager {
      * Create new tasks for creeps to perform and add them to the global memory task list
      */
     private fun findNewTasks() {
-        taskManager.createTasksForRooms()
+        val myRooms = Game.rooms.values.filter { it.controller != null && it.controller!!.my }
+        taskManager.createTasksForRooms(myRooms)
     }
 
     /**
@@ -92,6 +99,10 @@ class ColonyManager {
      */
     private fun activateAliveCreeps() {
         creepManager.activateAliveCreeps()
+    }
+
+    private fun defendRooms() {
+        roomManager.activateTowers()
     }
 
     /**
@@ -117,6 +128,10 @@ class ColonyManager {
         }
 
         return deadCreepEntries
+    }
+
+    private fun lowPriorityActions() {
+        roomManager.lowPriorityRoomUpdates()
     }
 
     private fun removeDeadCreepsFromTasks(deadCreepEntries: List<JsPair<String, CreepMemory>>) {
