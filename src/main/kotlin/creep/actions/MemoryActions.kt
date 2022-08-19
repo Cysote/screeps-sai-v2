@@ -50,12 +50,18 @@ open class MemoryActions(private val creep: Creep) {
         throw ConstructionSiteNotFoundException("No construction sites found in task room. Room: ${task.owningRoom} Task: ${task.id}")
     }
 
+    /**
+     * Retrieves the source that is known by the creep's task
+     */
     fun getSourceFromTask(): Source {
         val s: Source? = Game.getObjectById<Source>(task.targetId)
         if (s != null) return s
         throw InvalidIdException("Attempted to get source from memory, but it doesn't exist. Creep: ${creep.name} Task: ${task.id}")
     }
 
+    /**
+     * Finds a source in the room that owns the creep's task
+     */
     fun getSourceByTaskRoom(): Source {
         val s: Source? = Game.rooms[task.owningRoom]?.find(FIND_SOURCES)?.let {
             it[it.indices.random()]
@@ -64,6 +70,9 @@ open class MemoryActions(private val creep: Creep) {
         throw NoRoomResourceException("Attempted to get source from task room, but could not find source. Creep: ${creep.name} Task: ${task.id}")
     }
 
+    /**
+     * Retrieves the structure to deposit resources into that is known by the creep's task
+     */
     fun getDepositStructureFromTask(): StoreOwner {
         if (task.depositStructureId == STORAGE_ID_TOKEN) return Game.rooms[task.owningRoom]?.storage!!
         val s = Game.getObjectById<StoreOwner>(task.depositStructureId)
@@ -71,6 +80,30 @@ open class MemoryActions(private val creep: Creep) {
         throw InvalidIdException("Attempted to get deposit structure from memory, but it doesn't exist. Creep: ${creep.name} Task: ${task.id}")
     }
 
+    /**
+     * Finds a structure to deposit resources into in the room that owns the creep's task.
+     * This method specifically ignores structures such as towers and upgrade containers.
+     */
+    @Suppress("UNCHECKED_CAST_TO_EXTERNAL_INTERFACE")
+    fun getEconomicDepositStructureByTaskRoom(): StoreOwner {
+        val room = Game.rooms[task.owningRoom]!!
+
+        // Spawning structures
+        val notFullSpawningStructures = Game.structures.values.filter { struct ->
+            struct.room.name == task.owningRoom
+                    && (struct.structureType == STRUCTURE_SPAWN || struct.structureType == STRUCTURE_EXTENSION)
+                    && (struct as StoreOwner).store.getFreeCapacity(RESOURCE_ENERGY) > 0
+        }.toTypedArray()
+        if (notFullSpawningStructures.isNotEmpty()) {
+            return creep.pos.findClosestByRange(notFullSpawningStructures) as StoreOwner
+        }
+
+        throw StructureNotFoundException("Could not find deposit structure in room: ${room.name}. Creep: ${creep.name} Task: ${task.id}")
+    }
+
+    /**
+     * Finds a structure to deposit resources into in the room that owns the creep's task
+     */
     @Suppress("UNCHECKED_CAST_TO_EXTERNAL_INTERFACE")
     fun getDepositStructureByTaskRoom(): StoreOwner {
         val room = Game.rooms[task.owningRoom]!!

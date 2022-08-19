@@ -9,6 +9,10 @@ import screeps.api.*
 
 @ThrowsExceptions
 open class EconomyActions(private val creep: Creep) : MemoryActions(creep) {
+
+    /**
+     * Harvests a known source
+     */
     fun harvestTargetSource() {
         val source = getSourceFromTask()
         when (creep.harvest(source)) {
@@ -16,6 +20,9 @@ open class EconomyActions(private val creep: Creep) : MemoryActions(creep) {
         }
     }
 
+    /**
+     * Dynamically finds a source and harvests it
+     */
     fun harvestSourceDynamic() {
         if (creep.memory.dynamicSourceId.isBlank()) {
             creep.memory.dynamicSourceId = getSourceByTaskRoom().id
@@ -27,13 +34,25 @@ open class EconomyActions(private val creep: Creep) : MemoryActions(creep) {
         }
     }
 
-    fun upgradeController() {
-        val controller = getControllerFromTask()
-        when (creep.upgradeController(controller)) {
-            ERR_NOT_IN_RANGE -> creep.moveTo(controller)
+    /**
+     * Attempts to upgrade the room controller
+     */
+    fun upgradeController(throwException: Boolean = true): Boolean {
+        try {
+            val controller = getControllerFromTask()
+            when (creep.upgradeController(controller)) {
+                ERR_NOT_IN_RANGE -> creep.moveTo(controller)
+            }
+        } catch (e: RuntimeException) {
+            if (throwException) throw e
+            else return false
         }
+        return true
     }
 
+    /**
+     * Constructs buildings in a room based on the order the construction sites was instantiated in
+     */
     fun buildStructures(throwException: Boolean = true): Boolean {
         try {
             val constructionSite = getConstructionSiteByTaskRoom()
@@ -47,6 +66,9 @@ open class EconomyActions(private val creep: Creep) : MemoryActions(creep) {
         return true
     }
 
+    /**
+     * Deposits energy based on known structures
+     */
     fun depositEnergy(throwException: Boolean = true): Boolean {
         try {
             val depositStructure = getDepositStructureFromTask()
@@ -62,11 +84,41 @@ open class EconomyActions(private val creep: Creep) : MemoryActions(creep) {
         return true
     }
 
+    /**
+     * Dynamically finds only economic structures to deposit energy into
+     */
+    fun depositEnergyEconomic(throwException: Boolean = true): Boolean {
+        try {
+            if (creep.memory.dynamicDepositStructureId.isBlank()) {
+                creep.memory.dynamicDepositStructureId = getEconomicDepositStructureByTaskRoom().id
+            }
+        } catch (e: RuntimeException) {
+            if (throwException) throw e
+            else return false
+        }
+        return dynamicEnergyDepositing(throwException)
+    }
+
+    /**
+     * Dynamically finds structures to deposit energy into
+     */
     fun depositEnergyDynamic(throwException: Boolean = true): Boolean {
         try {
             if (creep.memory.dynamicDepositStructureId.isBlank()) {
                 creep.memory.dynamicDepositStructureId = getDepositStructureByTaskRoom().id
             }
+        } catch (e: RuntimeException) {
+            if (throwException) throw e
+            else return false
+        }
+        return dynamicEnergyDepositing(throwException)
+    }
+
+    /**
+     * Common depositing logic used by depositEnergyEconomic and depositEnergyDynamic
+     */
+    private fun dynamicEnergyDepositing(throwException: Boolean): Boolean {
+        try {
             val depositStructure = Game.getObjectById<StoreOwner>(creep.memory.dynamicDepositStructureId)
                     ?: throw InvalidIdException("dynamicDepositStructureId mapped to no real structure. Creep: ${creep.name}")
             if (depositStructure.store.getFreeCapacity(RESOURCE_ENERGY) == 0) {

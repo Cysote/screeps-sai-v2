@@ -21,7 +21,7 @@ class HarvestCreep(private val creep: Creep): EconomyCreep, EconomyActions(creep
         updateCreepMemory()
 
         if (creep.memory.reachedFullCapacity) {
-            if (!depositEnergy(throwException = false)) {
+            if (!depositEnergyEconomic(throwException = false)) {
                 if (!buildStructures(throwException = false)) {
                     upgradeController()
                 }
