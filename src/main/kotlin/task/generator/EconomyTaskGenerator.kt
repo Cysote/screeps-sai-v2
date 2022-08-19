@@ -33,7 +33,7 @@ class EconomyTaskGenerator {
                             owningRoom = room.name,
                             targetId = info.sourceId,
                             depositStructureId = "",
-                            desiredCreeps = maxEmptySpaces * 2,
+                            desiredCreeps = maxEmptySpaces,
                             desiredWork = 6,
                             desiredCarry = 0
                     )

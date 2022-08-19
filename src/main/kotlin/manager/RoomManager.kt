@@ -10,28 +10,22 @@ import memory.*
 import screeps.api.*
 import screeps.api.structures.StructureContainer
 import screeps.api.structures.StructureLink
+import screeps.api.structures.StructureTower
 import screeps.utils.unsafe.jsObject
 import task.Task
-import task.generator.EconomyTaskGenerator
+import utils.Utils
 
 /**
  * Manages all direct actions to rooms and structures in rooms across the entire colony.
+ * Stores and manages room, source, controller, and mineral data
  */
 class RoomManager {
-    private val myRooms = mutableListOf<Room>()
+    val myRooms = mutableListOf<Room>()
 
     init {
         Game.rooms.values.forEach { room ->
             if (room.controller != null && room.controller!!.my) {
                 myRooms.add(room)
-            }
-        }
-
-        myRooms.forEach { room ->
-            if (room.memory.lowPriorityUpdateTicker > LOW_PRIORITY_UPDATE_TICKER_MAX) {
-                room.memory.lowPriorityUpdateTicker = 0
-            } else {
-                room.memory.lowPriorityUpdateTicker = room.memory.lowPriorityUpdateTicker + 1
             }
         }
     }
@@ -62,17 +56,26 @@ class RoomManager {
                 }
                 room.memory.mineralInfos = mineralInfos
 
-                // Done
-                room.memory.initialized = true
+                // Done, if we found everything. If we didn't find everything, we're probably in a sim room, so keep trying
+                if (room.memory.sourceInfos.isNotEmpty() && room.memory.mineralInfos.isNotEmpty()) {
+                    room.memory.initialized = true
+                }
             }
         }
     }
 
+    /**
+     * Temp function for basic room defense. Should fold tower functionality into Military Manager for easier
+     * coordination with active defense creeps, etc
+     */
     fun activateTowers() {
         myRooms.forEach { room ->
-            val roomTowers = Game.structures.values.filter { it.room.name == room.name && it.structureType == STRUCTURE_TOWER }
-            roomTowers.forEach { tower ->
-                //tower.
+            val hostileCreeps = room.find(FIND_HOSTILE_CREEPS)
+            if (hostileCreeps.isNotEmpty()) {
+                val roomTowers = Game.structures.values.filter { it.room.name == room.name && it.structureType == STRUCTURE_TOWER }
+                roomTowers.forEach { tower ->
+                    (tower as StructureTower).attack(hostileCreeps[0])
+                }
             }
         }
     }
@@ -201,7 +204,7 @@ class RoomManager {
     fun lowPriorityRoomUpdates() {
         myRooms.forEach { room ->
 
-            if (room.memory.lowPriorityUpdateTicker == 0) {
+            if (Memory.lowPriorityRoomUpdateTicker == 0) {
 
                 /**
                  * Update source infos
@@ -231,6 +234,24 @@ class RoomManager {
                                     info.sourceContainerId = lookFilteredForCont[0].structure!!.id
                                 }
                             }
+                        }
+                    }
+
+                    // Calculate path to source if we don't have one
+                    if (info.pathToSource.isEmpty()) {
+                        val spawners = Game.spawns.values.filter { it.pos.roomName == room.name }
+                        val source = Game.getObjectById<Source>(info.sourceId)!!
+                        val searchResult = Utils.findPathToSource(spawners[0].pos, GoalWithRange(source.pos, 1))
+
+                        if (!searchResult.incomplete) {
+                            info.pathToSource = searchResult.path
+                        }
+                    }
+
+                    // Build roads on path to source
+                    if (info.pathToSource.isNotEmpty()) {
+                        for (pos in info.pathToSource) {
+                            room.createConstructionSite(RoomPosition(pos.x, pos.y, pos.roomName), STRUCTURE_ROAD)
                         }
                     }
                 }

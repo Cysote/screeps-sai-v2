@@ -2,6 +2,7 @@ package creep.economy
 
 import annotations.ThrowsExceptions
 import creep.actions.EconomyActions
+import logger.logMessage
 import memory.reachedFullCapacity
 import screeps.api.Creep
 
@@ -21,7 +22,9 @@ class BuildCreep(private val creep: Creep): EconomyCreep, EconomyActions(creep) 
         updateCreepMemory()
 
         if (creep.memory.reachedFullCapacity) {
-            buildStructures()
+            if (!buildStructures(throwException = false)) {
+                upgradeController()
+            }
         }
     }
 }

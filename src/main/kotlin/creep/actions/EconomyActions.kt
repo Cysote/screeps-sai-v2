@@ -1,14 +1,11 @@
 package creep.actions
 
 import annotations.ThrowsExceptions
-import exception.ConstructionSiteNotFoundException
 import exception.InvalidIdException
-import logger.logMessage
 import memory.dynamicDepositStructureId
 import memory.dynamicSourceId
 import memory.dynamicWithdrawStructureId
 import screeps.api.*
-import screeps.api.structures.Structure
 
 @ThrowsExceptions
 open class EconomyActions(private val creep: Creep) : MemoryActions(creep) {
@@ -88,6 +85,18 @@ open class EconomyActions(private val creep: Creep) : MemoryActions(creep) {
         return true
     }
 
+    fun dropEnergyNearConstructionSite(throwException: Boolean = true): Boolean {
+        try {
+            val constructionSite = getConstructionSiteByTaskRoom()
+            if (creep.pos.isNearTo(constructionSite)) creep.drop(RESOURCE_ENERGY)
+            else creep.moveTo(constructionSite)
+        } catch (e: RuntimeException) {
+            if (throwException) throw e
+            else return false
+        }
+        return true
+    }
+
     fun depositEnergyNearby(throwException: Boolean = true): Boolean {
         try {
             val depositStructure = getDepositStructureFromTask()
@@ -151,6 +160,27 @@ open class EconomyActions(private val creep: Creep) : MemoryActions(creep) {
         try {
             val withdrawStructure = getWithdrawStructureByRoomController()
             creep.withdraw(withdrawStructure, RESOURCE_ENERGY)
+        } catch (e: RuntimeException) {
+            if (throwException) throw e
+            else return false
+        }
+        return true
+    }
+
+    fun pickupDroppedEnergyDynamic(throwException: Boolean = true): Boolean {
+        try {
+            val constructionSite = getConstructionSiteByTaskRoom()
+
+            val top = constructionSite.pos.y - 1
+            val bottom = constructionSite.pos.y + 1
+            val left = constructionSite.pos.x - 1
+            val right = constructionSite.pos.x + 1
+            creep.room.lookAtArea(top, left, bottom, right)
+
+            /*when (creep.withdraw(withdrawStructure, RESOURCE_ENERGY)) {
+                ERR_NOT_IN_RANGE -> creep.moveTo(withdrawStructure)
+                ERR_FULL -> return false
+            }*/
         } catch (e: RuntimeException) {
             if (throwException) throw e
             else return false

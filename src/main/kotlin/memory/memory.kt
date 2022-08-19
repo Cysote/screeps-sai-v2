@@ -9,6 +9,8 @@ import screeps.utils.memory.memory
 import task.Task
 
 var GlobalMemory.tasks: Array<Task> by memory { arrayOf<Task>() }
+var GlobalMemory.lowPriorityRoomUpdateTicker: Int by memory { 0 }
+var GlobalMemory.lowPriorityTaskUpdateTicker: Int by memory { 0 }
 
 /* Creep.memory */
 var CreepMemory.taskId: String by memory { "" }
@@ -39,7 +41,6 @@ var RoomMemory.mineralInfos: Array<MineralInfo> by memory { arrayOf<MineralInfo>
 var RoomMemory.controllerInfo: ControllerInfo by memory { ControllerInfo() }
 var RoomMemory.routingStructuresInfo: RoutingStructuresInfo by memory { RoutingStructuresInfo() }
 var RoomMemory.totalControllerDistance: Int by memory { 0 }
-var RoomMemory.lowPriorityUpdateTicker: Int by memory { 0 }
 
 /* spawn.memory */
 var SpawnMemory.preparingToSpawn: Boolean by memory { false }

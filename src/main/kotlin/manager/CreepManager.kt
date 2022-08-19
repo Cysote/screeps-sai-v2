@@ -15,6 +15,7 @@ import screeps.api.*
 import task.Task
 import task.TaskType
 import kotlin.math.ceil
+import kotlin.math.floor
 import kotlin.math.max
 
 /**
@@ -125,7 +126,9 @@ class CreepManager {
                 carryNeeded = 1
                 carryRatio = 0
 
-                moveNeeded = workNeeded + carryNeeded
+                moveNeeded =
+                        if (task.bHasRoads) ceil((workNeeded + carryNeeded)/2.0).toInt()
+                        else workNeeded + carryNeeded
                 moveRatio = 1
             }
             TaskType.BUILD.name -> {

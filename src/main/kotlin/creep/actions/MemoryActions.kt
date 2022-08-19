@@ -75,7 +75,17 @@ open class MemoryActions(private val creep: Creep) {
     fun getDepositStructureByTaskRoom(): StoreOwner {
         val room = Game.rooms[task.owningRoom]!!
 
-        // First, get spawning structs
+        // Empty towers
+        val emptyTowers = Game.structures.values.filter { struct ->
+            struct.room.name == task.owningRoom
+                    && struct.structureType == STRUCTURE_TOWER
+                    && (struct as StoreOwner).store.getUsedCapacity(RESOURCE_ENERGY) == 0
+        }.toTypedArray()
+        if (emptyTowers.isNotEmpty()) {
+            return emptyTowers[0] as StoreOwner
+        }
+
+        // Spawning structures
         val notFullSpawningStructures = Game.structures.values.filter { struct ->
             struct.room.name == task.owningRoom
                     && (struct.structureType == STRUCTURE_SPAWN || struct.structureType == STRUCTURE_EXTENSION)
@@ -85,7 +95,7 @@ open class MemoryActions(private val creep: Creep) {
             return creep.pos.findClosestByRange(notFullSpawningStructures) as StoreOwner
         }
 
-        // Next, get upgrade containers
+        // Upgrade containers
         if (room.memory.controllerInfo.controllerContainerId.isNotBlank()) {
             val controllerCont = Game.getObjectById<StructureContainer>(room.memory.controllerInfo.controllerContainerId)
             if (controllerCont != null
@@ -94,7 +104,17 @@ open class MemoryActions(private val creep: Creep) {
             }
         }
 
-        // Finally, get storage
+        // Low Towers
+        val lowTowers = Game.structures.values.filter { struct ->
+            struct.room.name == task.owningRoom
+                    && struct.structureType == STRUCTURE_TOWER
+                    && (struct as StoreOwner).store.getFreeCapacity(RESOURCE_ENERGY) <= ((struct as StoreOwner).store.getCapacity()!! / 2)
+        }.toTypedArray()
+        if (lowTowers.isNotEmpty()) {
+            return lowTowers[0] as StoreOwner
+        }
+
+        // Storage
         if (task.withdrawStructureId != STORAGE_ID_TOKEN && room.storage != null) {
             return room.storage!!
         }

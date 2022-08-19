@@ -1,7 +1,7 @@
 package manager
 
+import exception.InvalidIdException
 import global.STORAGE_ID_TOKEN
-import logger.logMessage
 import memory.*
 import screeps.api.*
 import task.Task
@@ -9,6 +9,9 @@ import task.TaskType
 import task.generator.EconomyTaskGenerator
 import kotlin.math.ceil
 
+/**
+ * Generates tasks and performs maintenance on tasks to update values that determine the spawning and behavior of creeps
+ */
 class TaskManager {
     private val economyTaskGenerator = EconomyTaskGenerator()
 
@@ -72,7 +75,8 @@ class TaskManager {
     }
 
     /**
-     * Read all tasks in the colony and update their targets, numbers, or other data as needed
+     * Read all tasks in the colony and update their targets, numbers, or other data as needed.
+     * Some parts of task updates are gated by LOW_PRIORITY_TASK_UPDATE_TICKER_MAX
      */
     @Suppress("UNCHECKED_CAST_TO_EXTERNAL_INTERFACE")
     fun performTaskMaintenance() {
@@ -81,14 +85,14 @@ class TaskManager {
 
                 /**
                  * HARVESTSOURCE maintenance steps:
-                 * 1. Removing the deposit structure id when the structure is full
-                 * 2. Updating the deposit structure id when it is blank
+                 * 1. Remove the deposit structure id when the structure is full
+                 * 2. Update the deposit structure id when it is blank
                  */
                 TaskType.HARVESTSOURCE.name -> {
                     Game.rooms[task.owningRoom]?.let { room ->
                         room.memory.sourceInfos.find { info -> info.sourceId == task.targetId }?.let { srcInfo ->
 
-                            // 1. Removing the deposit structure id when the structure is full
+                            // 1. Remove the deposit structure id when the structure is full
                             if (task.depositStructureId.isNotBlank()) {
                                 Game.getObjectById<StoreOwner>(task.depositStructureId)?.let { struct ->
                                     struct.let {
@@ -105,7 +109,7 @@ class TaskManager {
                                 }
                             }
 
-                            // 2. Updating the deposit structure id when it is blank
+                            // 2. Update the deposit structure id when it is blank
                             if (task.depositStructureId.isBlank()) {
                                 task.depositStructureId = when {
                                     srcInfo.sourceLinkId.isNotBlank() -> srcInfo.sourceLinkId
@@ -114,14 +118,43 @@ class TaskManager {
                                 }
 
                                 if (task.depositStructureId.isBlank() && room.storage != null) task.depositStructureId = STORAGE_ID_TOKEN
+                            }
 
-                                /*if (task.depositStructureId.isNotBlank()) {
-                                    Game.getObjectById<StoreOwner>(task.depositStructureId)?.let {
-                                        if (it.store.getFreeCapacity(RESOURCE_ENERGY) == 0) {
-                                            task.depositStructureId = ""
+                            if (Memory.lowPriorityTaskUpdateTicker == 0) {
+
+                                // 3. Check that we have roads from at least one spawner
+                                val spawners = Game.spawns.values.filter { it.room.name == room.name }
+                                if (spawners.isNotEmpty()) {
+                                    val taskSourceInfos = room.memory.sourceInfos.filter { it.sourceId == task.targetId }
+
+                                    if (taskSourceInfos.size != 1) throw InvalidIdException("Expected only one source info to match task, but ${taskSourceInfos.size} did")
+
+                                    val taskSourceInfo = taskSourceInfos[0]
+                                    var bHasRoads = true
+                                    posLoop@for (pos in taskSourceInfo.pathToSource) {
+                                        val lookResult = room.lookForAt(LOOK_STRUCTURES, pos.x, pos.y)
+
+                                        // Null means no buildings, including roads.
+                                        if (lookResult == null) {
+                                            bHasRoads = false
+                                            break@posLoop
+                                        } else {
+                                            var bFoundARoad = false
+                                            lookLoop@for (result in lookResult) {
+                                                if (result.structureType == STRUCTURE_ROAD) {
+                                                    bFoundARoad = true
+                                                    break@lookLoop
+                                                }
+                                            }
+                                            if (!bFoundARoad) {
+                                                bHasRoads = false
+                                                break@posLoop
+                                            }
                                         }
                                     }
-                                }*/
+
+                                    task.bHasRoads = bHasRoads
+                                }
                             }
                         }
                     }
@@ -129,9 +162,9 @@ class TaskManager {
 
                 /**
                  * BUILD maintenance steps:
-                 * 1. Updating desired workers, work, and carry based on number of construction sites
-                 * 2. Removing the withdraw structure id when the structure is empty
-                 * 3. Updating the withdraw structure id when it is blank
+                 * 1. Update desired workers, work, and carry based on number of construction sites
+                 * 2. Remove the withdraw structure id when the structure is empty
+                 * 3. Update the withdraw structure id when it is blank
                  */
                 TaskType.BUILD.name -> {
                     Game.rooms[task.owningRoom]?.let { room ->
@@ -148,7 +181,7 @@ class TaskManager {
                                 task.desiredWork = 0
                                 task.desiredCarry = 0
                             }
-                            // 1. Updating desired workers, work, and carry based on number of construction sites
+                            // 1. Update desired workers, work, and carry based on number of construction sites
                             else {
                                 var wantedWorkers = 0
                                 var wantedWork = 0
@@ -164,7 +197,7 @@ class TaskManager {
                                 task.desiredWork = wantedWork
                                 task.desiredCarry = wantedCarry
 
-                                // 2. Removing the withdraw structure id when the structure is empty
+                                // 2. Remove the withdraw structure id when the structure is empty
                                 if (task.withdrawStructureId.isNotBlank()) {
                                     Game.getObjectById<StoreOwner>(task.withdrawStructureId)?.let { struct ->
                                         struct.let {
@@ -175,7 +208,7 @@ class TaskManager {
                                     }
                                 }
 
-                                // 3. Updating the withdraw structure id when it is blank
+                                // 3. Update the withdraw structure id when it is blank
                                 if (task.withdrawStructureId.isBlank()) {
                                     task.withdrawStructureId = if (room.storage != null) STORAGE_ID_TOKEN
                                     else {
@@ -193,14 +226,14 @@ class TaskManager {
 
                 /**
                  * UPGRADE maintenance steps:
-                 * 1. Updating the withdraw structure id when it is blank
-                 * 2. Removing the withdraw structure id when it doesn't exist
-                 * 3. Fluctuating the desired work based on how much energy is in the container
+                 * 1. Update the withdraw structure id when it is blank
+                 * 2. Remove the withdraw structure id when it doesn't exist
+                 * 3. Fluctuate the desired work based on how much energy is in the container
                  */
                 TaskType.UPGRADE.name -> {
                     Game.rooms[task.owningRoom]?.let { room ->
 
-                        // 1. Updating the controller structure id when it is blank
+                        // 1. Update the controller structure id when it is blank
                         if (task.withdrawStructureId.isBlank()) {
                             task.isActive = false
                             if (room.memory.controllerInfo.controllerContainerId.isNotBlank()) {
@@ -211,10 +244,10 @@ class TaskManager {
                         if (task.withdrawStructureId.isNotBlank()) {
                             val controllerContainer = Game.getObjectById<StoreOwner>(task.withdrawStructureId)
 
-                            // 2. Removing the withdraw structure id when it doesn't exist
+                            // 2. Remove the withdraw structure id when it doesn't exist
                             if (controllerContainer == null) task.withdrawStructureId = ""
 
-                            // 3. Fluctuating the desired work based on how much energy is in the container
+                            // 3. Fluctuate the desired work based on how much energy is in the container
                             else {
                                 task.isActive = true
 
@@ -236,14 +269,14 @@ class TaskManager {
 
                 /**
                  * DELIVERY maintenance steps:
-                 * 1. Updating desired workers and carry based on room energy and structures
-                 * 2. Updating the withdraw structure id when it is empty
+                 * 1. Update desired workers and carry based on room energy and structures
+                 * 2. Update the withdraw structure id when it is empty
                  */
                 TaskType.DELIVERY.name -> {
                     Game.rooms[task.owningRoom]?.let { room ->
                         var bAllLinksActive = false
 
-                        // 1. Updating desired workers and carry based on room energy and structures
+                        // 1. Update desired workers and carry based on room energy and structures
 
                         // If we have links for all sources, 1 delivery boi for every 11 room tasks
                         // to help handle when the room is managing many remote harvesting tasks
@@ -301,7 +334,7 @@ class TaskManager {
                             }
                         }
 
-                        // 2. Updating the withdraw structure id when it is empty
+                        // 2. Update the withdraw structure id when it is empty
                         if (bAllLinksActive && room.storage != null) {
                             task.withdrawStructureId = STORAGE_ID_TOKEN
                         } else {
