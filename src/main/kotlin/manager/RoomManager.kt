@@ -248,8 +248,11 @@ class RoomManager {
                         }
                     }
 
-                    // Build roads on path to source
-                    if (info.pathToSource.isNotEmpty()) {
+                    // Build roads on path to source, but only if we have containers or link in the room and level > 2
+                    if (info.pathToSource.isNotEmpty()
+                            && (info.sourceContainerId.isNotBlank()
+                                || info.sourceLinkId.isNotBlank())
+                            && room.controller!!.level > 2) {
                         for (pos in info.pathToSource) {
                             room.createConstructionSite(RoomPosition(pos.x, pos.y, pos.roomName), STRUCTURE_ROAD)
                         }

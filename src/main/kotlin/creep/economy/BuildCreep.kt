@@ -14,8 +14,10 @@ class BuildCreep(private val creep: Creep): EconomyCreep, EconomyActions(creep) 
 
     override fun act() {
         if (!creep.memory.reachedFullCapacity) {
-            if (!withdrawEnergy(throwException = false)) {
-                harvestSourceDynamic()
+            if (!pickupDroppedEnergyNearConstructionSite(throwException = false)) {
+                if (!withdrawEnergy(throwException = false)) {
+                    harvestSourceDynamic()
+                }
             }
         }
 

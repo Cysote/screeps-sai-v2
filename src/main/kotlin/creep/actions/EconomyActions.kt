@@ -2,7 +2,9 @@ package creep.actions
 
 import annotations.ThrowsExceptions
 import exception.InvalidIdException
+import logger.logMessage
 import memory.dynamicDepositStructureId
+import memory.dynamicPickupResourceId
 import memory.dynamicSourceId
 import memory.dynamicWithdrawStructureId
 import screeps.api.*
@@ -219,20 +221,43 @@ open class EconomyActions(private val creep: Creep) : MemoryActions(creep) {
         return true
     }
 
-    fun pickupDroppedEnergyDynamic(throwException: Boolean = true): Boolean {
+    fun pickupDroppedEnergyNearConstructionSite(throwException: Boolean = true): Boolean {
         try {
-            val constructionSite = getConstructionSiteByTaskRoom()
+            logMessage("Creep: ${creep.name}")
+            var pickupResource: Resource? = null
+            if (creep.memory.dynamicPickupResourceId.isBlank()) {
+                val constructionSite = getConstructionSiteByTaskRoom()
 
-            val top = constructionSite.pos.y - 1
-            val bottom = constructionSite.pos.y + 1
-            val left = constructionSite.pos.x - 1
-            val right = constructionSite.pos.x + 1
-            creep.room.lookAtArea(top, left, bottom, right)
+                val top = constructionSite.pos.y - 1
+                val bottom = constructionSite.pos.y + 1
+                val left = constructionSite.pos.x - 1
+                val right = constructionSite.pos.x + 1
+                val result = creep.room.lookAtAreaAsArray(top, left, bottom, right)
 
-            /*when (creep.withdraw(withdrawStructure, RESOURCE_ENERGY)) {
-                ERR_NOT_IN_RANGE -> creep.moveTo(withdrawStructure)
+                logMessage("result:")
+                val energyList = result.filter { it.type == LOOK_ENERGY }
+                energyList.forEach {
+                    logMessage("Type: " + it.type.toString())
+                }
+
+                val energy = energyList[0]
+
+
+                pickupResource = result.filter { it.type == LOOK_ENERGY }[0].resource
+                if (pickupResource != null) creep.memory.dynamicPickupResourceId = pickupResource.id
+            }
+
+            if (pickupResource == null) {
+                logMessage("Null Resource")
+                pickupResource = Game.getObjectById<Resource>(creep.memory.dynamicPickupResourceId)
+                        ?: throw InvalidIdException("dynamicPickupResourceId mapped to no real structure. Creep: ${creep.name}")
+            }
+            logMessage("ID: ${creep.memory.dynamicPickupResourceId}")
+            when (creep.pickup(pickupResource)) {
+                ERR_NOT_IN_RANGE -> creep.moveTo(pickupResource)
                 ERR_FULL -> return false
-            }*/
+                OK -> creep.memory.dynamicPickupResourceId = ""
+            }
         } catch (e: RuntimeException) {
             if (throwException) throw e
             else return false
