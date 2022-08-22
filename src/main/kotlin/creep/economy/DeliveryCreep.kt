@@ -12,7 +12,7 @@ class DeliveryCreep(private val creep: Creep): EconomyCreep, EconomyActions(cree
 
     override fun act() {
         if (!creep.memory.reachedFullCapacity) {
-            withdrawEnergyDynamic()
+            withdrawEnergyDynamic(throwException = false)
         }
 
         updateCreepMemory()

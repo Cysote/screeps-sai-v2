@@ -51,6 +51,9 @@ open class MemoryActions(private val creep: Creep) {
         throw NoRoomException("Task has a target room that does not exist. Room: ${task.owningRoom} Task: ${task.id}")
     }
 
+    /**
+     * Gets a friendly or neutral controller known by the creep's task
+     */
     fun getControllerFromTask(): StructureController {
         Game.rooms[task.owningRoom]?.let {
             if (it.controller != null) return it.controller!!
@@ -58,6 +61,9 @@ open class MemoryActions(private val creep: Creep) {
         throw NoRoomControllerException("Room has no controller. Room: ${task.owningRoom} Task: ${task.id}")
     }
 
+    /**
+     * Gets a hostile or neutral controller known by the creep's task
+     */
     fun getForeignControllerFromTask(): StructureController {
         Game.rooms[task.targetRoom]?.let {
             if (it.controller != null) return it.controller!!
@@ -69,6 +75,16 @@ open class MemoryActions(private val creep: Creep) {
         val roomSites = Game.constructionSites.values.filter { site -> site.room?.name == task.owningRoom }
         if (roomSites.isNotEmpty()) return roomSites[0]
         throw ConstructionSiteNotFoundException("No construction sites found in task room. Room: ${task.owningRoom} Task: ${task.id}")
+    }
+
+    /**
+     * Gets a delivery location for a construction site
+     * TODO: Want to refactor this to get any kind of location we want
+     */
+    fun getConstructionSiteDeliveryLocationByTaskRoom(): ConstructionSite {
+        val roomSites = Game.constructionSites.values.filter { site -> site.room?.name == task.owningRoom }
+        if (roomSites.isNotEmpty()) return roomSites[0]
+        throw DeliveryLocationNotFoundException("Delivery location not found in task room. Room: ${task.owningRoom} Task: ${task.id}")
     }
 
     /**

@@ -141,7 +141,7 @@ open class EconomyActions(private val creep: Creep) : MemoryActions(creep) {
 
     fun dropEnergyNearConstructionSite(throwException: Boolean = true): Boolean {
         try {
-            val constructionSite = getConstructionSiteByTaskRoom()
+            val constructionSite = getConstructionSiteDeliveryLocationByTaskRoom()
             if (creep.pos.isNearTo(constructionSite)) creep.drop(RESOURCE_ENERGY)
             else creep.moveTo(constructionSite)
         } catch (e: RuntimeException) {

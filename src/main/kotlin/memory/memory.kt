@@ -20,6 +20,7 @@ var CreepMemory.dynamicSourceId: String by memory { "" }
 var CreepMemory.dynamicWithdrawStructureId: String by memory { "" }
 var CreepMemory.dynamicDepositStructureId: String by memory { "" }
 var CreepMemory.dynamicPickupResourceId: String by memory { "" }
+var CreepMemory.relinquishingTask: Boolean by memory { false }
 
 /* Rest of the persistent memory structures.
 * These set an unused test variable to 0. This is done to illustrate the how to add variables to

@@ -45,6 +45,7 @@ class ColonyManager {
         upgradeRooms()
 
         activateAliveCreeps()
+        performCreepStateMaintenance()
         findNewTasks()
 
         val tasks = getActiveBelowCapacityTasks()
@@ -151,6 +152,17 @@ class ColonyManager {
      */
     private fun activateAliveCreeps() {
         creepManager.activateAliveCreeps()
+    }
+
+    /**
+     * Creep state may change while performing their actions. Certain actions
+     * may need to be performed based on those changes.
+     */
+    private fun performCreepStateMaintenance() {
+        // Remove creeps from their assigned tasks if they are trying to give up their task
+        Game.creeps.values.filter { it.memory.relinquishingTask }.forEach { creep ->
+            taskManager.removeCreepFromTask(creep)
+        }
     }
 
     /**

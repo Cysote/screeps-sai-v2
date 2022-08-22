@@ -10,6 +10,7 @@ import logger.logDebugMessage
 import logger.logError
 import logger.logMessage
 import memory.owningRoom
+import memory.relinquishingTask
 import memory.taskId
 import memory.tasks
 import screeps.api.*
@@ -34,8 +35,8 @@ class CreepManager {
             try {
                 val creepTask = Memory.tasks.singleOrNull { memTask -> memTask.id == creep.memory.taskId }
                 if (creepTask == null) {
-                    relinquishTask(creep)
                     IdleCreep(creep).act()
+                    throw TaskNotFoundException("Creep had a task that does not exist in memory. Creep: ${creep.name}")
                 } else {
                         when(creepTask.type) {
                             TaskType.HARVESTSOURCE.name -> HarvestCreep(creep)
@@ -48,7 +49,8 @@ class CreepManager {
                 }
             } catch (e: RuntimeException) {
                 when (e) {
-                    is TaskNotFoundException, is ConstructionSiteNotFoundException -> relinquishTask(creep)
+                    is TaskNotFoundException,
+                    is ConstructionSiteNotFoundException -> relinquishTask(creep)
                     else -> logError("Creep failed to act. Reason: ${e.message}")
                 }
             }
@@ -56,6 +58,7 @@ class CreepManager {
     }
 
     fun getIdleCreepForTask(task: Task): Creep? {
+        var creepToReturn: Creep? = null
         idleCreeps.forEach { creep ->
             if (creep.memory.owningRoom == task.owningRoom) {
                 when (task.type) {
@@ -65,30 +68,31 @@ class CreepManager {
                         when (task.desiredCreeps) {
                             1 -> {
                                 if (getBodyNum(creep, WORK) == task.desiredWork && getBodyNum(creep, CARRY) > 0)
-                                    return creep
+                                    creepToReturn = creep
                             }
                             else -> if (getBodyNum(creep, WORK) > 0 && getBodyNum(creep, CARRY) > 0)
-                                return creep
+                                creepToReturn = creep
                         }
                     }
                     TaskType.BUILD.name -> {
                         if (getBodyNum(creep, WORK) > 0 && getBodyNum(creep, CARRY) > 0)
-                            return creep
+                            creepToReturn = creep
                     }
                     TaskType.UPGRADE.name -> {
                         if (getBodyNum(creep, WORK) > 0 && getBodyNum(creep, CARRY) > 0)
-                            return creep
+                            creepToReturn = creep
                     }
                     TaskType.CLAIM.name -> {
                         if (getBodyNum(creep, CLAIM) > 0) {
-                            return creep
+                            creepToReturn = creep
                         }
                     }
-                    else -> return creep
+                    else -> creepToReturn = creep
                 }
             }
         }
-        return null
+        if (creepToReturn != null) creepToReturn!!.memory.relinquishingTask = false
+        return creepToReturn
     }
 
     private fun getBodyNum(creep: Creep, bodyPartConstant: BodyPartConstant): Int {
@@ -107,7 +111,9 @@ class CreepManager {
     }
 
     private fun relinquishTask(creep: Creep) {
-        creep.memory.taskId = ""
+        logMessage("Relinquishing task ${creep.name}")
+        //creep.memory.taskId = ""
+        creep.memory.relinquishingTask = true
     }
 
     @ThrowsExceptions

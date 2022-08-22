@@ -231,6 +231,7 @@ class RoomManager {
                         this.taskId = task.id
                         this.reachedFullCapacity = false
                         this.owningRoom = task.owningRoom
+                        this.relinquishingTask = false
                     }
                 })
 

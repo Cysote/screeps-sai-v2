@@ -26,7 +26,20 @@ class TaskManager {
         return true
     }
 
+    fun removeCreepFromTask(creep: Creep): Boolean {
+        removeCreepNameFromTask(creep.memory.taskId, creep.name)
+        creep.memory.taskId = ""
+        return true
+    }
+
     fun addCreepNameToTask(taskId: String, creepName: String): Boolean {
+        Memory.tasks.filter { it.id == taskId }[0].let {
+            it.assignedCreeps = it.assignedCreeps.plus(creepName)
+        }
+        return true
+    }
+
+    fun removeCreepNameFromTask(taskId: String, creepName: String): Boolean {
         Memory.tasks.filter { it.id == taskId }[0].let {
             it.assignedCreeps = it.assignedCreeps.plus(creepName)
         }
@@ -77,32 +90,6 @@ class TaskManager {
             }
         }
     }
-
-    /*fun createEconomicTasksForRooms(rooms: List<Room>) {
-        rooms.forEach { room ->
-            // Economy Tasks
-            economyTaskGenerator.generateSourceHarvestTasks(room).let {
-                Memory.tasks = Memory.tasks.plus(it)
-            }
-
-            economyTaskGenerator.generateBuildTask(room)?.let {
-                Memory.tasks = Memory.tasks.plus(it)
-            }
-
-            economyTaskGenerator.generateUpgradeTask(room)?.let {
-                Memory.tasks = Memory.tasks.plus(it)
-            }
-
-            economyTaskGenerator.generateDeliveryTask(room)?.let {
-                Memory.tasks = Memory.tasks.plus(it)
-            }
-
-            // Military Tasks
-            militaryTaskGenerator.generateClaimTask(room)?.let {
-                Memory.tasks = Memory.tasks.plus(it)
-            }
-        }
-    }*/
 
     fun getActiveBelowCapacityTasks(): List<Task> {
         val tasksToReturn = mutableListOf<Task>()
