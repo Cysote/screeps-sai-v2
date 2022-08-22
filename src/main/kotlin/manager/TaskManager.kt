@@ -2,18 +2,23 @@ package manager
 
 import exception.InvalidIdException
 import global.STORAGE_ID_TOKEN
+import logger.logError
 import memory.*
 import screeps.api.*
 import task.Task
 import task.TaskType
+import task.createinfo.TaskToCreateInfo
 import task.generator.EconomyTaskGenerator
+import task.generator.MilitaryTaskGenerator
 import kotlin.math.ceil
 
 /**
- * Generates tasks and performs maintenance on tasks to update values that determine the spawning and behavior of creeps
+ * Generates tasks for rooms and performs maintenance on tasks to update
+ * the values that determine the spawning and behavior of creeps
  */
 class TaskManager {
     private val economyTaskGenerator = EconomyTaskGenerator()
+    private val militaryTaskGenerator = MilitaryTaskGenerator()
 
     fun addCreepToTask(taskId: String, creep: Creep): Boolean {
         addCreepNameToTask(taskId, creep.name)
@@ -28,8 +33,54 @@ class TaskManager {
         return true
     }
 
-    fun createTasksForRooms(rooms: List<Room>) {
+    fun createTasks(taskToCreateInfoList: List<TaskToCreateInfo>) {
+        taskToCreateInfoList.forEach { taskToCreateInfo ->
+            val room = Game.rooms[taskToCreateInfo.owningRoom]
+            val taskType = TaskType.valueOf(taskToCreateInfo.taskType)
+            val targetRoom = Game.rooms[taskToCreateInfo.targetRoom]
+
+            if (room != null) {
+                when (taskType.name) {
+
+                    TaskType.HARVESTSOURCE.name -> {
+                        economyTaskGenerator.generateSourceHarvestTasks(room).let {
+                            Memory.tasks = Memory.tasks.plus(it)
+                        }
+                    }
+
+                    TaskType.BUILD.name -> {
+                        economyTaskGenerator.generateBuildTask(room).let {
+                            Memory.tasks = Memory.tasks.plus(it)
+                        }
+                    }
+
+                    TaskType.UPGRADE.name -> {
+                        economyTaskGenerator.generateUpgradeTask(room).let {
+                            Memory.tasks = Memory.tasks.plus(it)
+                        }
+                    }
+
+                    TaskType.DELIVERY.name -> {
+                        economyTaskGenerator.generateDeliveryTask(room).let {
+                            Memory.tasks = Memory.tasks.plus(it)
+                        }
+                    }
+
+                    TaskType.CLAIM.name -> {
+                        if (targetRoom !== null) {
+                            militaryTaskGenerator.generateClaimTask(room, targetRoom).let {
+                                Memory.tasks = Memory.tasks.plus(it)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /*fun createEconomicTasksForRooms(rooms: List<Room>) {
         rooms.forEach { room ->
+            // Economy Tasks
             economyTaskGenerator.generateSourceHarvestTasks(room).let {
                 Memory.tasks = Memory.tasks.plus(it)
             }
@@ -45,8 +96,13 @@ class TaskManager {
             economyTaskGenerator.generateDeliveryTask(room)?.let {
                 Memory.tasks = Memory.tasks.plus(it)
             }
+
+            // Military Tasks
+            militaryTaskGenerator.generateClaimTask(room)?.let {
+                Memory.tasks = Memory.tasks.plus(it)
+            }
         }
-    }
+    }*/
 
     fun getActiveBelowCapacityTasks(): List<Task> {
         val tasksToReturn = mutableListOf<Task>()
@@ -173,9 +229,9 @@ class TaskManager {
                         val srcContainerNames = room.memory.sourceInfos.map { it.sourceContainerId }.toMutableList()
                         if (room.storage != null) srcContainerNames.add(STORAGE_ID_TOKEN)
                         if (srcContainerNames.isNotEmpty()) {
-                            val allSites = Game.constructionSites.values.filter { site -> site.room?.name == task.owningRoom }
+                            val allSitesInThisRoom = Game.constructionSites.values.filter { site -> site.room?.name == task.owningRoom }
 
-                            if (allSites.isEmpty()) {
+                            if (allSitesInThisRoom.isEmpty()) {
                                 task.isActive = false
                                 task.desiredCreeps = 0
                                 task.desiredWork = 0
@@ -186,7 +242,7 @@ class TaskManager {
                                 var wantedWorkers = 0
                                 var wantedWork = 0
                                 var wantedCarry = 0
-                                for (site in allSites) {
+                                for (site in allSitesInThisRoom) {
                                     wantedWorkers += (site.progressTotal / 2500.0).toInt()
                                     wantedWork += (site.progressTotal / 1500.0).toInt()
                                     wantedCarry += (site.progressTotal / 750.0).toInt()

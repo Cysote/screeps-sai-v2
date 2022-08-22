@@ -32,7 +32,7 @@ var CreepMemory.dynamicPickupResourceId: String by memory { "" }
 //var PowerCreepMemory.test : Int by memory { 0 }
 
 /* flag.memory */
-//var FlagMemory.test : Int by memory { 0 }
+var FlagMemory.processed : Boolean by memory { false }
 
 /* room.memory */
 var RoomMemory.initialized : Boolean by memory { false }

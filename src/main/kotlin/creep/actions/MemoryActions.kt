@@ -37,11 +37,32 @@ open class MemoryActions(private val creep: Creep) {
         return getTaskById(creep.memory.taskId)
     }
 
+    fun getRoomFromTask(): Room {
+        Game.rooms[task.owningRoom]?.let {
+            return it
+        }
+        throw NoRoomException("Task has a owning room that does not exist. Room: ${task.owningRoom} Task: ${task.id}")
+    }
+
+    fun getTargetRoomFromTask(): Room {
+        Game.rooms[task.targetRoom]?.let {
+            return it
+        }
+        throw NoRoomException("Task has a target room that does not exist. Room: ${task.owningRoom} Task: ${task.id}")
+    }
+
     fun getControllerFromTask(): StructureController {
         Game.rooms[task.owningRoom]?.let {
             if (it.controller != null) return it.controller!!
         }
         throw NoRoomControllerException("Room has no controller. Room: ${task.owningRoom} Task: ${task.id}")
+    }
+
+    fun getForeignControllerFromTask(): StructureController {
+        Game.rooms[task.targetRoom]?.let {
+            if (it.controller != null) return it.controller!!
+        }
+        throw NoRoomControllerException("Cannot find a controller in target room. Target Room: ${task.targetRoom} Task: ${task.id}")
     }
 
     fun getConstructionSiteByTaskRoom(): ConstructionSite {

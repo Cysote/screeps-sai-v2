@@ -2,6 +2,7 @@ package manager
 
 import global.LOW_PRIORITY_ROOM_UPDATE_TICKER_MAX
 import global.LOW_PRIORITY_TASK_UPDATE_TICKER_MAX
+import global.M_CLAIM_ROOM
 import logger.logMessage
 import memory.*
 import screeps.api.*
@@ -17,6 +18,7 @@ import task.TaskType
 class ColonyManager {
     private val roomManager = RoomManager()
     private val creepManager = CreepManager()
+    private val militaryManager = MilitaryManager(roomManager.myRooms)
     private val taskManager = TaskManager()
 
     // Tick
@@ -137,7 +139,10 @@ class ColonyManager {
      * Create new tasks for creeps to perform and add them to the global memory task list
      */
     private fun findNewTasks() {
-        taskManager.createTasksForRooms(roomManager.myRooms)
+        val newTasks = roomManager.determineNewRoomTasks() +
+                militaryManager.determineNewMilitaryTasks()
+
+        taskManager.createTasks(newTasks)
     }
 
     /**
@@ -182,6 +187,7 @@ class ColonyManager {
 
     private fun lowPriorityActions() {
         roomManager.lowPriorityRoomUpdates()
+        clearProcessedFlags()
     }
 
     private fun removeDeadCreepsFromTasks(deadCreepEntries: List<JsPair<String, CreepMemory>>) {
@@ -192,6 +198,27 @@ class ColonyManager {
                 val assignedCreepsList = task.assignedCreeps.toMutableList()
                 assignedCreepsList.remove(name)
                 task.assignedCreeps = assignedCreepsList.toTypedArray()
+            }
+        }
+    }
+
+    private fun clearProcessedFlags() {
+        Game.flags.values.forEach { flag ->
+            if (flag.memory.processed) {
+                when {
+
+                    /**
+                     * Clear Claim flags when:
+                     * 1. We own the room the claim flag is in
+                     */
+                    flag.name.startsWith(M_CLAIM_ROOM) -> {
+                        val room = Game.rooms[flag.pos.roomName]
+                        if (room != null) {
+                            if (room.controller != null && room.controller!!.my)
+                                flag.remove()
+                        }
+                    }
+                }
             }
         }
     }

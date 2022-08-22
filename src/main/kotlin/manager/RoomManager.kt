@@ -4,6 +4,7 @@ import global.*
 import info.ControllerInfo
 import info.MineralInfo
 import info.SourceInfo
+import logger.logError
 import logger.logMessage
 import logger.logPriorityMessage
 import memory.*
@@ -13,22 +14,16 @@ import screeps.api.structures.StructureLink
 import screeps.api.structures.StructureTower
 import screeps.utils.unsafe.jsObject
 import task.Task
+import task.TaskType
+import task.createinfo.TaskToCreateInfo
 import utils.Utils
 
 /**
- * Manages all direct actions to rooms and structures in rooms across the entire colony.
- * Stores and manages room, source, controller, and mineral data
+ * Manages all direct actions to rooms and structures in individual rooms.
+ * Stores and manages room, source, controller, and mineral data for a single room.
  */
 class RoomManager {
-    val myRooms = mutableListOf<Room>()
-
-    init {
-        Game.rooms.values.forEach { room ->
-            if (room.controller != null && room.controller!!.my) {
-                myRooms.add(room)
-            }
-        }
-    }
+    val myRooms: List<Room> = Game.rooms.values.filter { it.controller != null && it.controller!!.my }
 
     fun initRooms() {
         myRooms.forEach { room ->
@@ -166,6 +161,65 @@ class RoomManager {
                 }
             }
         }
+    }
+
+    fun determineNewRoomTasks(): List<TaskToCreateInfo> {
+        val newRoomTasks = mutableListOf<TaskToCreateInfo>()
+
+        myRooms.forEach { room ->
+
+            /**
+             * Generate new Harvest Source Tasks when:
+             * 1. We have less harvest source tasks than sources
+             */
+            val numOfSources = room.memory.sourceInfos.size
+            val harvestTasks = Memory.tasks.filter { task -> task.type == TaskType.HARVESTSOURCE.name && task.owningRoom == room.name }
+
+            if (harvestTasks.size < numOfSources) {
+                newRoomTasks.add(TaskToCreateInfo(
+                        owningRoom = room.name,
+                        taskType = TaskType.HARVESTSOURCE.name
+                ))
+            }
+
+            /**
+             * Generate a new Build task when:
+             * 1. We can't find any build tasks
+             */
+            Memory.tasks.find { task -> task.type == TaskType.BUILD.name && task.owningRoom == room.name } ?: run {
+                newRoomTasks.add(TaskToCreateInfo(
+                        owningRoom = room.name,
+                        taskType = TaskType.BUILD.name
+                ))
+            }
+
+            /**
+             * Generate a new Upgrade task when:
+             * 1. We can't find any upgrade tasks
+             */
+            Memory.tasks.find { task -> task.type == TaskType.UPGRADE.name && task.owningRoom == room.name } ?: run {
+                newRoomTasks.add(TaskToCreateInfo(
+                        owningRoom = room.name,
+                        taskType = TaskType.UPGRADE.name
+                ))
+            }
+
+            /**
+             * Generate a new Delivery task when:
+             * 1. We have at least one container
+             * 2. We do not see any Delivery tasks
+             */
+            if (room.memory.sourceInfos.any { it.sourceContainerId.isNotBlank() } || room.storage != null) {
+                Memory.tasks.find { task -> task.type == TaskType.DELIVERY.name && task.owningRoom == room.name } ?: run {
+                    newRoomTasks.add(TaskToCreateInfo(
+                            owningRoom = room.name,
+                            taskType = TaskType.DELIVERY.name
+                    ))
+                }
+            }
+        }
+
+        return newRoomTasks
     }
 
     fun createCreepForTask(task: Task, creepBody: List<BodyPartConstant>): String? {

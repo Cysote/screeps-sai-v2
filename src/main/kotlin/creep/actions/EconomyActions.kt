@@ -223,36 +223,17 @@ open class EconomyActions(private val creep: Creep) : MemoryActions(creep) {
 
     fun pickupDroppedEnergyNearConstructionSite(throwException: Boolean = true): Boolean {
         try {
-            logMessage("Creep: ${creep.name}")
             var pickupResource: Resource? = null
             if (creep.memory.dynamicPickupResourceId.isBlank()) {
-                val constructionSite = getConstructionSiteByTaskRoom()
-
-                val top = constructionSite.pos.y - 1
-                val bottom = constructionSite.pos.y + 1
-                val left = constructionSite.pos.x - 1
-                val right = constructionSite.pos.x + 1
-                val result = creep.room.lookAtAreaAsArray(top, left, bottom, right)
-
-                logMessage("result:")
-                val energyList = result.filter { it.type == LOOK_ENERGY }
-                energyList.forEach {
-                    logMessage("Type: " + it.type.toString())
-                }
-
-                val energy = energyList[0]
-
-
-                pickupResource = result.filter { it.type == LOOK_ENERGY }[0].resource
+                pickupResource = findEnergyNearConstructionSite()
                 if (pickupResource != null) creep.memory.dynamicPickupResourceId = pickupResource.id
             }
 
             if (pickupResource == null) {
-                logMessage("Null Resource")
                 pickupResource = Game.getObjectById<Resource>(creep.memory.dynamicPickupResourceId)
-                        ?: throw InvalidIdException("dynamicPickupResourceId mapped to no real structure. Creep: ${creep.name}")
+                        ?: throw InvalidIdException("dynamicPickupResourceId mapped to no real resource. Creep: ${creep.name}")
             }
-            logMessage("ID: ${creep.memory.dynamicPickupResourceId}")
+
             when (creep.pickup(pickupResource)) {
                 ERR_NOT_IN_RANGE -> creep.moveTo(pickupResource)
                 ERR_FULL -> return false
@@ -263,5 +244,37 @@ open class EconomyActions(private val creep: Creep) : MemoryActions(creep) {
             else return false
         }
         return true
+    }
+
+    private fun findEnergyNearConstructionSite(): Resource? {
+        val constructionSite = getConstructionSiteByTaskRoom()
+
+        val droppedResources = constructionSite.pos.findInRange(FIND_DROPPED_RESOURCES, 1)
+        return droppedResources.filter { it.resourceType == RESOURCE_ENERGY }.getOrNull(0)
+
+        // TODO: This look logic doesn't work with Kotlin types. If it is ever fixed, update this code to use the look,
+        // as it is more efficient than a find.
+        /*val top = constructionSite.pos.y - 1
+        val bottom = constructionSite.pos.y + 1
+        val left = constructionSite.pos.x - 1
+        val right = constructionSite.pos.x + 1
+        val result = creep.room.lookAtAreaAsArray(top, left, bottom, right)
+
+        logMessage("result:")
+        val energyList = result.filter { it.type == LOOK_ENERGY }
+        energyList.forEach {
+            logMessage("Type: " + it.type.toString())
+        }
+
+        val energy = energyList[0]
+        logMessage("Res: ${energy.creep}")
+        logMessage("Res: ${energy.structure}")
+        logMessage("Res: ${energy.terrain}")
+        logMessage("Res: ${energy.constructionSite}")
+        logMessage("Res: ${energy.resource}")
+        logMessage("Res: ${energy}")
+        logMessage("Res: ${energy.type}")
+
+        return result.filter { it.type == LOOK_ENERGY }[0].resource*/
     }
 }

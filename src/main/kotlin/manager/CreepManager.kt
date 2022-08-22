@@ -2,6 +2,7 @@ package manager
 
 import annotations.ThrowsExceptions
 import creep.economy.*
+import creep.military.ClaimCreep
 import exception.ConstructionSiteNotFoundException
 import exception.TaskNotFoundException
 import exception.TaskTypeNotSupportedException
@@ -41,6 +42,7 @@ class CreepManager {
                             TaskType.BUILD.name -> BuildCreep(creep)
                             TaskType.UPGRADE.name -> UpgradeCreep(creep)
                             TaskType.DELIVERY.name -> DeliveryCreep(creep)
+                            TaskType.CLAIM.name -> ClaimCreep(creep)
                             else -> IdleCreep(creep)
                         }.act()
                 }
@@ -70,7 +72,15 @@ class CreepManager {
                         }
                     }
                     TaskType.BUILD.name -> {
-                        if (getBodyNum(creep, WORK) > 0 && getBodyNum(creep, CARRY) > 0) {
+                        if (getBodyNum(creep, WORK) > 0 && getBodyNum(creep, CARRY) > 0)
+                            return creep
+                    }
+                    TaskType.UPGRADE.name -> {
+                        if (getBodyNum(creep, WORK) > 0 && getBodyNum(creep, CARRY) > 0)
+                            return creep
+                    }
+                    TaskType.CLAIM.name -> {
+                        if (getBodyNum(creep, CLAIM) > 0) {
                             return creep
                         }
                     }

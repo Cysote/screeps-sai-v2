@@ -3,8 +3,7 @@ package manager
 import screeps.api.*
 
 /**
- * Manages intermediary actions between generating tasks, assigning
- * tasks to creeps, and building room models for the economy
+ * Manages colony-wide economic models for inter-room calculations and decisions within the entire colony
  */
 class EconomyManager {
 }
