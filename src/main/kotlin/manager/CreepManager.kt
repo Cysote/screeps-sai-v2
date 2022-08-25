@@ -43,6 +43,7 @@ class CreepManager {
                             TaskType.BUILD.name -> BuildCreep(creep)
                             TaskType.UPGRADE.name -> UpgradeCreep(creep)
                             TaskType.DELIVERY.name -> DeliveryCreep(creep)
+                            TaskType.REPAIR.name -> RepairCreep(creep)
                             TaskType.CLAIM.name -> ClaimCreep(creep)
                             else -> IdleCreep(creep)
                         }.act()
@@ -134,6 +135,8 @@ class CreepManager {
         val moveRatio: Int
 
         when (task.type) {
+
+            // Economy Tasks
             TaskType.HARVESTSOURCE.name -> {
                 // Do not subtract the work we have already provisioned, because we want a single creep to own a source eventually
                 workNeeded = task.desiredWork
@@ -179,6 +182,19 @@ class CreepManager {
                 moveNeeded = carryNeeded
                 moveRatio = 1
             }
+            TaskType.REPAIR.name -> {
+                workNeeded = task.desiredWork
+                workRatio = 1
+
+                carryNeeded = task.desiredCarry
+                carryRatio = 1
+
+                moveNeeded = workNeeded + carryNeeded
+                moveRatio = 1
+            }
+
+            // Military Tasks
+
             else -> {
                 throw TaskTypeNotSupportedException("Attempted to create a body for task ${task.type} but no code path exists.")
             }

@@ -78,7 +78,7 @@ class RoomManager {
     fun levelUpRooms() {
         myRooms.forEach { room ->
             if (room.controller!!.level > room.memory.level) {
-                room.memory.level += room.controller!!.level
+                room.memory.level = room.controller!!.level
 
                 // Reset totalControllerDistance so that delivery tasks without links recalculate required delivery creeps
                 room.memory.totalControllerDistance = 0
@@ -207,7 +207,7 @@ class RoomManager {
             /**
              * Generate a new Delivery task when:
              * 1. We have at least one container
-             * 2. We do not see any Delivery tasks
+             * 2. And, we do not see any Delivery tasks
              */
             if (room.memory.sourceInfos.any { it.sourceContainerId.isNotBlank() } || room.storage != null) {
                 Memory.tasks.find { task -> task.type == TaskType.DELIVERY.name && task.owningRoom == room.name } ?: run {
@@ -215,6 +215,35 @@ class RoomManager {
                             owningRoom = room.name,
                             taskType = TaskType.DELIVERY.name
                     ))
+                }
+            }
+
+            /**
+             * Generate a new Repair task when:
+             * 1. We have any static defenses that are not full HP
+             * 2. Or, we have any structure below half HP
+             * 3. And, we do not see any Repair tasks
+             */
+            if (Memory.lowPriorityTaskUpdateTicker == 0) {
+                val lowHitsStructs = room.find(FIND_STRUCTURES, options {
+                    filter = {
+                        (it.structureType != STRUCTURE_RAMPART
+                                && it.structureType != STRUCTURE_WALL
+                                && it.hits < it.hitsMax / 2)
+                                || ((it.structureType == STRUCTURE_RAMPART
+                                    || it.structureType == STRUCTURE_WALL)
+                                    && it.hits < it.hitsMax)
+                    }
+                })
+
+                if (lowHitsStructs.isNotEmpty()) {
+                    Memory.tasks.find { task -> task.type == TaskType.REPAIR.name && task.owningRoom == room.name }
+                            ?: run {
+                                newRoomTasks.add(TaskToCreateInfo(
+                                        owningRoom = room.name,
+                                        taskType = TaskType.REPAIR.name
+                                ))
+                            }
                 }
             }
         }

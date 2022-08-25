@@ -1,11 +1,10 @@
 package creep.economy
 
 import creep.actions.EconomyActions
-import memory.dynamicDepositStructureId
 import memory.reachedFullCapacity
 import screeps.api.Creep
 
-class DeliveryCreep(private val creep: Creep): EconomyCreep, EconomyActions(creep) {
+class RepairCreep(private val creep: Creep): EconomyCreep, EconomyActions(creep) {
     init {
         updateCreepReachedFullCapacityMemory()
     }
@@ -18,9 +17,8 @@ class DeliveryCreep(private val creep: Creep): EconomyCreep, EconomyActions(cree
         updateCreepReachedFullCapacityMemory()
 
         if (creep.memory.reachedFullCapacity) {
-            if (!depositEnergyDynamic(throwException = false)) {
-                creep.memory.dynamicDepositStructureId = ""
-                dropEnergyNearConstructionSite(throwException = false)
+            if (!repairStructures(throwException = false)) {
+                repairStructuresDynamic()
             }
         }
     }

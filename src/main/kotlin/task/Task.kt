@@ -8,6 +8,7 @@ data class Task(
         var role: String = TaskRole.NONE.name,          // Whether this task is for the Economy or Military
         var type: String = TaskType.NONE.name,          // Describes what kind of creeps should work this task
         var isActive: Boolean = false,                  // Whether this task should be worked on right now
+        var needsMaintenance: Boolean = false,          // Whether this task has old data and should update its fields
         var owningRoom: String = "",                    // The room that owns this task
         var targetRoom: String = "",                    // The name of the target room of this task
         var targetId: String = "",                      // The ID of the target of this task

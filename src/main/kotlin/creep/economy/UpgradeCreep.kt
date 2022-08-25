@@ -6,7 +6,7 @@ import screeps.api.Creep
 
 class UpgradeCreep(private val creep: Creep): EconomyCreep, EconomyActions(creep) {
     init {
-        updateCreepMemory()
+        updateCreepReachedFullCapacityMemory()
     }
 
     override fun act() {
@@ -15,7 +15,7 @@ class UpgradeCreep(private val creep: Creep): EconomyCreep, EconomyActions(creep
             withdrawEnergyNearby(throwException = false)
         }
 
-        updateCreepMemory()
+        updateCreepReachedFullCapacityMemory()
 
         if (!creep.memory.reachedFullCapacity) {
             withdrawEnergy()

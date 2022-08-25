@@ -16,6 +16,7 @@ var GlobalMemory.lowPriorityTaskUpdateTicker: Int by memory { 0 }
 var CreepMemory.taskId: String by memory { "" }
 var CreepMemory.reachedFullCapacity: Boolean by memory { false }
 var CreepMemory.owningRoom: String by memory { "" }
+var CreepMemory.dynamicTargetId: String by memory { "" }
 var CreepMemory.dynamicSourceId: String by memory { "" }
 var CreepMemory.dynamicWithdrawStructureId: String by memory { "" }
 var CreepMemory.dynamicDepositStructureId: String by memory { "" }

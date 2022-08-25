@@ -2,9 +2,10 @@ package manager
 
 import exception.InvalidIdException
 import global.STORAGE_ID_TOKEN
-import logger.logError
+import logger.logMessage
 import memory.*
 import screeps.api.*
+import screeps.api.structures.Structure
 import task.Task
 import task.TaskType
 import task.createinfo.TaskToCreateInfo
@@ -79,6 +80,12 @@ class TaskManager {
                         }
                     }
 
+                    TaskType.REPAIR.name -> {
+                        economyTaskGenerator.generateRepairTask(room).let {
+                            Memory.tasks = Memory.tasks.plus(it)
+                        }
+                    }
+
                     TaskType.CLAIM.name -> {
                         if (targetRoom !== null) {
                             militaryTaskGenerator.generateClaimTask(room, targetRoom).let {
@@ -128,27 +135,18 @@ class TaskManager {
 
                 /**
                  * HARVESTSOURCE maintenance steps:
-                 * 1. Remove the deposit structure id when the structure is full
+                 * 1. Make the deposit structure id blank when the task is flagged for maintenance
                  * 2. Update the deposit structure id when it is blank
+                 * 3. By low priority update ticker, flag task as having or not having roads
                  */
                 TaskType.HARVESTSOURCE.name -> {
                     Game.rooms[task.owningRoom]?.let { room ->
                         room.memory.sourceInfos.find { info -> info.sourceId == task.targetId }?.let { srcInfo ->
 
-                            // 1. Remove the deposit structure id when the structure is full
+                            // 1. Remove the deposit structure id when task is flagged for maintenance
                             if (task.depositStructureId.isNotBlank()) {
-                                Game.getObjectById<StoreOwner>(task.depositStructureId)?.let { struct ->
-                                    struct.let {
-                                        if (struct.store.getFreeCapacity(RESOURCE_ENERGY) == 0) {
-                                            val structToStoreIn = Game.structures.values.find { struct ->
-                                                struct.room.name == room.name
-                                                        && (struct.structureType == STRUCTURE_EXTENSION
-                                                            || struct.structureType == STRUCTURE_SPAWN)
-                                                        && (struct as StoreOwner).store.getFreeCapacity(RESOURCE_ENERGY) > 0
-                                            }
-                                            task.depositStructureId = structToStoreIn?.id ?: ""
-                                        }
-                                    }
+                                if (task.needsMaintenance) {
+                                    task.depositStructureId = ""
                                 }
                             }
 
@@ -396,7 +394,60 @@ class TaskManager {
                         }
                     }
                 }
+
+                /**
+                 * REPAIR maintenance steps:
+                 * 1. Only search for new task target structure by low priority update ticker
+                 * 2. When a structure is found with half hit points or less, add to task
+                 * 3. Immediately search for a new structure when the current structure reaches full hit points
+                 */
+                TaskType.REPAIR.name -> {
+
+                    // Function for finding struct to add to task
+                    val findLowHitsStructs: () -> String? = {
+                        var id: String? = null
+                        Game.rooms[task.owningRoom]?.let { room ->
+                            val lowHitsStructs = room.find(FIND_STRUCTURES, options {
+                                filter = {
+                                    it.structureType != STRUCTURE_RAMPART
+                                            && it.structureType != STRUCTURE_WALL
+                                            && it.hits < it.hitsMax / 2
+                                }
+                            })
+
+                            if (lowHitsStructs.isNotEmpty()) {
+                                id = lowHitsStructs.sortedBy { it.hits }[0].id
+                            }
+                        }
+                        id
+                    }
+                    // end function
+
+                    // If no structure is in active repair, find a new one
+                    if (task.targetId.isBlank()) {
+                        if (Memory.lowPriorityTaskUpdateTicker == 0) {
+                            findLowHitsStructs()?.let {
+                                task.targetId = it
+                            }
+                        }
+                    }
+                    // If we have a structure, only find a new one when it is full hits
+                    else {
+                        Game.getObjectById<Structure>(task.targetId)?.let { struct ->
+                            if (struct.hits == struct.hitsMax) {
+                                // If we don't find a lowHitsStruct, targetId will be blank and so we'll
+                                    // revert to low pri update ticket
+                                task.targetId = ""
+                                findLowHitsStructs()?.let {
+                                    task.targetId = it
+                                }
+                            }
+                        } ?: run { task.targetId = "" }
+                    }
+                }
             }
+
+            task.needsMaintenance = false
         }
     }
 }

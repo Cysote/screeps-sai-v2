@@ -15,7 +15,7 @@ open class MilitaryActions(private val creep: Creep) : MemoryActions(creep) {
      */
     fun claimRoom(throwException: Boolean = true): Boolean {
         try {
-            val foreignController = getForeignControllerFromTask()
+            val foreignController = getControllerByTaskTargetRoom()
             when (creep.claimController(foreignController)) {
                 ERR_NOT_IN_RANGE -> creep.moveTo(foreignController)
             }

@@ -89,4 +89,20 @@ class EconomyTaskGenerator {
                 desiredCarry = 0
         )
     }
+
+    fun generateRepairTask(room: Room): Task {
+        // Static initialization. This task currently doesn't change one added
+        return Task(
+                id = generateTaskId(),
+                role = TaskRole.ECONOMY.name,
+                type = TaskType.REPAIR.name,
+                isActive = true,
+                owningRoom = room.name,
+                targetId = "",
+                withdrawStructureId = "",
+                desiredCreeps = 1,
+                desiredWork = 3,
+                desiredCarry = 6
+        )
+    }
 }
