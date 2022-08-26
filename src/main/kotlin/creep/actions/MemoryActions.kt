@@ -9,6 +9,7 @@ import screeps.api.*
 import screeps.api.structures.Structure
 import screeps.api.structures.StructureContainer
 import screeps.api.structures.StructureController
+import screeps.api.structures.StructureStorage
 import task.Task
 
 @ThrowsExceptions
@@ -106,6 +107,21 @@ open class MemoryActions(private val creep: Creep) {
     }
 
     /**
+     * Retrieves the mineral that is known by the creep's task
+     */
+    fun getMineralFromTask(): Mineral {
+        val s: Mineral? = Game.getObjectById<Mineral>(task.targetId)
+        if (s != null) return s
+        throw InvalidIdException("Attempted to get mineral from memory, but it doesn't exist. Creep: ${creep.name} Task: ${task.id}")
+    }
+
+    fun getAnyCarriedResourceName(): ResourceConstant {
+        if (creep.store.keys.isNotEmpty())
+            return creep.store.keys[0]
+        throw EmptyStoreException("Attempted to get any resource this creep was carrying, but it is not carrying anything. Creep: ${creep.name} Task: ${task.id}")
+    }
+
+    /**
      * Finds a source in the room that owns the creep's task
      */
     fun getSourceByTaskOwningRoom(): Source {
@@ -113,6 +129,15 @@ open class MemoryActions(private val creep: Creep) {
             it[it.indices.random()]
         }
         //throw NoRoomResourceException("Attempted to get source from task room, but could not find source. Creep: ${creep.name} Task: ${task.id}")
+    }
+
+    /**
+     * Finds the room's storage, if it has one
+     */
+    fun getStorageByTaskOwningRoom(): StructureStorage {
+        val storage = getOwningRoomFromTask().storage
+        if (storage != null) return storage
+        throw StructureNotFoundException("Attempted to get the owning room's storage, but didn't find it. Creep: ${creep.name} Task: ${task.id}")
     }
 
     /**

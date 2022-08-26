@@ -2,14 +2,13 @@ package creep.actions
 
 import annotations.ThrowsExceptions
 import exception.InvalidIdException
-import logger.logMessage
 import memory.*
 import screeps.api.*
 import screeps.api.structures.Structure
 
 @ThrowsExceptions
 open class EconomyActions(private val creep: Creep) : MemoryActions(creep) {
-    val customActions = CustomActions(creep)
+    private val customActions = CustomActions(creep)
 
     /**
      * Harvests a known source
@@ -33,6 +32,13 @@ open class EconomyActions(private val creep: Creep) : MemoryActions(creep) {
         when (creep.harvest(source)) {
             ERR_NOT_IN_RANGE -> creep.moveTo(source)
             ERR_NOT_ENOUGH_RESOURCES -> customActions.moveAwayFrom(source.pos, 3)
+        }
+    }
+
+    fun harvestTargetMineral() {
+        val mineral = getMineralFromTask()
+        when (creep.harvest(mineral)) {
+            ERR_NOT_IN_RANGE -> creep.moveTo(mineral)
         }
     }
 
@@ -192,6 +198,32 @@ open class EconomyActions(private val creep: Creep) : MemoryActions(creep) {
         try {
             val depositStructure = getDepositStructureFromTask()
             creep.transfer(depositStructure, RESOURCE_ENERGY)
+        } catch (e: RuntimeException) {
+            if (throwException) throw e
+            else return false
+        }
+        return true
+    }
+
+    fun depositResourceNearby(throwException: Boolean = true): Boolean {
+        try {
+            val depositStructure = getDepositStructureFromTask()
+            val resourceConstant = getAnyCarriedResourceName()
+            creep.transfer(depositStructure, resourceConstant)
+        } catch (e: RuntimeException) {
+            if (throwException) throw e
+            else return false
+        }
+        return true
+    }
+
+    fun depositResourceInStorage(throwException: Boolean = true): Boolean {
+        try {
+            val storage = getStorageByTaskOwningRoom()
+            val resourceConstant = getAnyCarriedResourceName()
+            when (creep.transfer(storage, resourceConstant)) {
+                ERR_NOT_IN_RANGE -> creep.moveTo(storage)
+            }
         } catch (e: RuntimeException) {
             if (throwException) throw e
             else return false

@@ -86,6 +86,12 @@ class TaskManager {
                         }
                     }
 
+                    TaskType.HARVESTMINERAL.name -> {
+                        economyTaskGenerator.generateHarvestMineralTask(room).let {
+                            Memory.tasks = Memory.tasks.plus(it)
+                        }
+                    }
+
                     TaskType.CLAIM.name -> {
                         if (targetRoom !== null) {
                             militaryTaskGenerator.generateClaimTask(room, targetRoom).let {
@@ -444,6 +450,17 @@ class TaskManager {
                             }
                         } ?: run { task.targetId = "" }
                     }
+                }
+
+                /**
+                 * HARVEST MINERAL maintenance steps:
+                 * 1. If active, monitor the mineral's current amount
+                 *     A. When the current amount is 0, deactivate the task
+                 * 2. If inactive, monitor the mineral's regeneration timer
+                 *     A. When the regeneration timer is 0, reactivate the task
+                 */
+                TaskType.HARVESTMINERAL.name -> {
+
                 }
             }
 

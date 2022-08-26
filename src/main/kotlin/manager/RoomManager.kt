@@ -32,7 +32,7 @@ class RoomManager {
 
                 room.memory.level = 0
                 room.memory.sourceInfos = arrayOf()
-                room.memory.mineralInfos = arrayOf()
+                room.memory.mineralInfo = MineralInfo()
                 room.memory.controllerInfo = ControllerInfo()
 
                 // Source Info
@@ -45,14 +45,11 @@ class RoomManager {
 
                 // Mineral Info
                 val minerals = room.find(FIND_MINERALS)
-                var mineralInfos = arrayOf<MineralInfo>()
-                for (mineral in minerals) {
-                    mineralInfos = mineralInfos.plus(MineralInfo(mineralId = mineral.id, mineralType = mineral.mineralType))
-                }
-                room.memory.mineralInfos = mineralInfos
+                if (minerals.size > 1) Game.notify("Somehow there are two minerals in room ${room.name}. Was there a game update?")
+                room.memory.mineralInfo = MineralInfo(mineralId = minerals[0].id, mineralType = minerals[0].mineralType)
 
                 // Done, if we found everything. If we didn't find everything, we're probably in a sim room, so keep trying
-                if (room.memory.sourceInfos.isNotEmpty() && room.memory.mineralInfos.isNotEmpty()) {
+                if (room.memory.sourceInfos.isNotEmpty() && room.memory.mineralInfo.mineralId.isNotBlank()) {
                     room.memory.initialized = true
                 }
             }
@@ -60,7 +57,7 @@ class RoomManager {
     }
 
     /**
-     * Temp function for basic room defense. Should fold tower functionality into Military Manager for easier
+     * TODO: Temp function for basic room defense. Should fold tower functionality into Military Manager for easier
      * coordination with active defense creeps, etc
      */
     fun activateTowers() {
@@ -224,26 +221,36 @@ class RoomManager {
              * 2. Or, we have any structure below half HP
              * 3. And, we do not see any Repair tasks
              */
-            if (Memory.lowPriorityTaskUpdateTicker == 0) {
+            Memory.tasks.find { task -> task.type == TaskType.REPAIR.name && task.owningRoom == room.name } ?: run {
                 val lowHitsStructs = room.find(FIND_STRUCTURES, options {
                     filter = {
                         (it.structureType != STRUCTURE_RAMPART
                                 && it.structureType != STRUCTURE_WALL
                                 && it.hits < it.hitsMax / 2)
                                 || ((it.structureType == STRUCTURE_RAMPART
-                                    || it.structureType == STRUCTURE_WALL)
-                                    && it.hits < it.hitsMax)
+                                || it.structureType == STRUCTURE_WALL)
+                                && it.hits < it.hitsMax)
                     }
                 })
-
                 if (lowHitsStructs.isNotEmpty()) {
-                    Memory.tasks.find { task -> task.type == TaskType.REPAIR.name && task.owningRoom == room.name }
-                            ?: run {
-                                newRoomTasks.add(TaskToCreateInfo(
-                                        owningRoom = room.name,
-                                        taskType = TaskType.REPAIR.name
-                                ))
-                            }
+                    newRoomTasks.add(TaskToCreateInfo(
+                            owningRoom = room.name,
+                            taskType = TaskType.REPAIR.name
+                    ))
+                }
+            }
+
+            /**
+             * Generate a new Harvest Mineral task when:
+             * 1. We have a container next to the room's mineral
+             * 2. We do not have a Harvest Mineral task
+             */
+            Memory.tasks.find { task -> task.type == TaskType.HARVESTMINERAL.name && task.owningRoom == room.name } ?: run {
+                if (room.memory.mineralInfo.mineralContainerId.isNotBlank()) {
+                    newRoomTasks.add(TaskToCreateInfo(
+                            owningRoom = room.name,
+                            taskType = TaskType.HARVESTMINERAL.name
+                    ))
                 }
             }
         }
@@ -355,6 +362,22 @@ class RoomManager {
                     val lookFilteredForCont = lookResult.filter { it.type == LOOK_STRUCTURES  && it.structure!!.structureType == STRUCTURE_CONTAINER }
                     if (lookFilteredForCont.isNotEmpty()) {
                         room.memory.controllerInfo.controllerContainerId = lookFilteredForCont[0].structure!!.id
+                    }
+                }
+
+                /**
+                 * Update mineral info
+                 */
+                if (room.memory.mineralInfo.mineralContainerId.isNotBlank()) {
+                    val cont = Game.getObjectById<StructureContainer>(room.memory.mineralInfo.mineralContainerId)
+                    if (cont == null) room.memory.mineralInfo.mineralContainerId = ""
+                }
+                if (room.memory.controllerInfo.controllerContainerId.isBlank()) {
+                    val mineral = Game.getObjectById<Mineral>(room.memory.mineralInfo.mineralId)
+                    val lookResult = lookAtWithRange(mineral!!.pos, room, 1)
+                    val lookFilteredForCont = lookResult.filter { it.type == LOOK_STRUCTURES  && it.structure!!.structureType == STRUCTURE_CONTAINER }
+                    if (lookFilteredForCont.isNotEmpty()) {
+                        room.memory.mineralInfo.mineralContainerId = lookFilteredForCont[0].structure!!.id
                     }
                 }
             }

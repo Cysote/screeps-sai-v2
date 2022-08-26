@@ -44,6 +44,7 @@ class CreepManager {
                             TaskType.UPGRADE.name -> UpgradeCreep(creep)
                             TaskType.DELIVERY.name -> DeliveryCreep(creep)
                             TaskType.REPAIR.name -> RepairCreep(creep)
+                            TaskType.HARVESTMINERAL.name -> HarvestMineralCreep(creep)
                             TaskType.CLAIM.name -> ClaimCreep(creep)
                             else -> IdleCreep(creep)
                         }.act()
@@ -75,11 +76,9 @@ class CreepManager {
                                 creepToReturn = creep
                         }
                     }
-                    TaskType.BUILD.name -> {
-                        if (getBodyNum(creep, WORK) > 0 && getBodyNum(creep, CARRY) > 0)
-                            creepToReturn = creep
-                    }
-                    TaskType.UPGRADE.name -> {
+                    TaskType.BUILD.name,
+                    TaskType.UPGRADE.name,
+                    TaskType.REPAIR.name -> {
                         if (getBodyNum(creep, WORK) > 0 && getBodyNum(creep, CARRY) > 0)
                             creepToReturn = creep
                     }
@@ -192,9 +191,31 @@ class CreepManager {
                 moveNeeded = workNeeded + carryNeeded
                 moveRatio = 1
             }
+            TaskType.HARVESTMINERAL.name -> {
+                workNeeded = task.desiredWork
+                workRatio = 2
+
+                carryNeeded = task.desiredCarry
+                carryRatio = 0
+
+                moveNeeded = ceil(workNeeded/2.0).toInt() + carryNeeded
+                moveRatio = 1
+            }
 
             // Military Tasks
+            TaskType.CLAIM.name -> {
+                workNeeded = 0
+                workRatio = 0
 
+                carryNeeded = 0
+                carryRatio = 0
+
+                claimNeeded = 1
+                claimRatio = 1
+
+                moveNeeded = 1
+                moveRatio = 1
+            }
             else -> {
                 throw TaskTypeNotSupportedException("Attempted to create a body for task ${task.type} but no code path exists.")
             }

@@ -91,7 +91,7 @@ class EconomyTaskGenerator {
     }
 
     fun generateRepairTask(room: Room): Task {
-        // Static initialization. This task currently doesn't change one added
+        // Static initialization. This task currently doesn't change once added
         return Task(
                 id = generateTaskId(),
                 role = TaskRole.ECONOMY.name,
@@ -103,6 +103,22 @@ class EconomyTaskGenerator {
                 desiredCreeps = 1,
                 desiredWork = 3,
                 desiredCarry = 6
+        )
+    }
+
+    fun generateHarvestMineralTask(room: Room): Task {
+        // Static initialization. This task currently doesn't change once added
+        return Task(
+                id = generateTaskId(),
+                role = TaskRole.ECONOMY.name,
+                type = TaskType.HARVESTMINERAL.name,
+                isActive = true,
+                owningRoom = room.name,
+                targetId = "",
+                withdrawStructureId = "",
+                desiredCreeps = 1,
+                desiredWork = 32,
+                desiredCarry = 1     // Total of 33 body, half of that as move is 17, which is 50 total
         )
     }
 }

@@ -40,7 +40,7 @@ var FlagMemory.processed : Boolean by memory { false }
 var RoomMemory.initialized : Boolean by memory { false }
 var RoomMemory.level: Int by memory { 0 }
 var RoomMemory.sourceInfos: Array<SourceInfo> by memory { arrayOf<SourceInfo>() }
-var RoomMemory.mineralInfos: Array<MineralInfo> by memory { arrayOf<MineralInfo>() }
+var RoomMemory.mineralInfo: MineralInfo by memory { MineralInfo() }
 var RoomMemory.controllerInfo: ControllerInfo by memory { ControllerInfo() }
 var RoomMemory.routingStructuresInfo: RoutingStructuresInfo by memory { RoutingStructuresInfo() }
 var RoomMemory.totalControllerDistance: Int by memory { 0 }

@@ -21,6 +21,8 @@ class DeliveryCreep(private val creep: Creep): EconomyCreep, EconomyActions(cree
             if (!depositEnergyDynamic(throwException = false)) {
                 creep.memory.dynamicDepositStructureId = ""
                 dropEnergyNearConstructionSite(throwException = false)
+            } else {
+                depositEnergyDynamic(throwException = false)
             }
         }
     }
